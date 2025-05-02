@@ -1,0 +1,229 @@
+I'll provide you with a detailed step-by-step manual to compile your Grey Literature Search application using Wasp with your existing codebase. You already have a well-structured project with a main.wasp file, so we'll focus on ensuring everything is properly configured and deployed.
+
+# Grey Literature Search App - Wasp Setup Guide
+
+## 1. Environment Setup
+
+First, ensure your development environment meets Wasp's requirements:
+
+```bash
+# Check Node.js version (should be 18 or higher)
+node -v
+
+# If needed, install or update Node.js
+# Using nvm (recommended)
+nvm install 20
+nvm use 20
+```
+
+## 2. Install Wasp CLI
+
+Install the Wasp command-line interface:
+
+```bash
+curl -sSL https://get.wasp.sh/installer.sh | sh
+```
+
+Verify the installation:
+
+```bash
+wasp -v
+```
+
+## 3. Project Structure Verification
+
+Your project already has the necessary structure with a main.wasp file, but let's ensure all paths are correct:
+
+```bash
+# Check that the main.wasp file exists in the root directory
+ls -la main.wasp
+
+# Check that your source directories exist
+ls -la src/client
+ls -la src/server
+ls -la src/shared
+```
+
+## 4. Environment Variables Configuration
+
+Create the necessary environment files for development:
+
+```bash
+# Create server environment file
+cat > .env.server << 'EOF'
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/thesis_grey
+JWT_SECRET=your_jwt_secret_here
+SERPER_API_KEY=your_serper_api_key_here
+EOF
+
+# Create client environment file if needed
+cat > .env.client << 'EOF'
+REACT_APP_API_URL=http://localhost:3001
+EOF
+```
+
+## 5. Database Setup
+
+Set up the PostgreSQL database:
+
+```bash
+# Start the database using Wasp (which uses Docker behind the scenes)
+wasp db start
+
+# Create the database migration
+wasp db migrate-dev
+
+# If you need to reset the database during development
+# wasp db reset
+```
+
+## 6. Start Development Server
+
+Launch the development server:
+
+```bash
+wasp start
+```
+
+This will:
+- Compile your Wasp configuration
+- Generate necessary code
+- Start both the backend and frontend servers
+- Typically make your app available at http://localhost:3000
+
+## 7. Code Path Adjustments (if needed)
+
+If you encounter any path-related errors, you may need to adjust import paths in your components. Wasp uses specific import patterns:
+
+```typescript
+// Client-side imports should use 'wasp/client' prefix
+import { useAuth } from 'wasp/client/auth';
+import { useQuery } from 'wasp/client/operations';
+
+// Server-side imports should use 'wasp/server' prefix
+import { HttpError } from 'wasp/server';
+```
+
+## 8. Building for Production
+
+When you're ready to build for production:
+
+```bash
+# Build the application
+wasp build
+
+# The built application will be in the .wasp/build directory
+```
+
+## 9. Deployment
+
+### Option 1: Using Wasp's Built-in Fly.io Deployment
+
+```bash
+# Configure Fly.io credentials if needed
+wasp deploy fly setup
+
+# Deploy the application
+wasp deploy fly launch thesis-grey mia
+```
+
+### Option 2: Manual Deployment with Docker
+
+Your project already includes a Dockerfile and docker-compose.yml, so you can use:
+
+```bash
+# Build and run with Docker Compose
+docker-compose up --build
+
+# Or deploy to another platform using the Docker image
+docker build -t thesis-grey:latest .
+```
+
+## 10. Troubleshooting Common Issues
+
+### Path Resolution Issues
+
+If you encounter import path errors:
+
+```bash
+# Check and update import paths in your components
+# From: import { MainLayout } from '../../shared/components/MainLayout';
+# To: import { MainLayout } from '@client/shared/components/MainLayout';
+```
+
+### Database Connection Issues
+
+If you have database connection problems:
+
+```bash
+# Check database connection
+wasp db studio
+
+# Reset database if necessary
+wasp db reset
+```
+
+### Runtime Errors
+
+If you encounter runtime errors:
+
+```bash
+# Check Wasp-generated files
+ls -la .wasp
+
+# Clean and restart Wasp
+wasp clean
+wasp start
+```
+
+## 11. Development Workflow
+
+For ongoing development:
+
+1. Edit your React components in `src/client/`
+2. Edit your server logic in `src/server/`
+3. Update your data model in `main.wasp` if needed
+4. Run `wasp db migrate-dev` after schema changes
+5. Use `wasp start` for the development server
+
+## 12. Advanced Features
+
+### Adding New Dependencies
+
+If you need to add new dependencies, update the dependencies section in your main.wasp file:
+
+```wasp
+app ThesisGrey {
+  // ...
+  dependencies: [
+    ("axios", "1.4.0"),
+    ("your-new-package", "^1.0.0")
+  ]
+}
+```
+
+### Updating Database Schema
+
+If you need to update your database schema:
+
+1. Modify the entity definitions in `main.wasp`
+2. Run `wasp db migrate-dev`
+3. Optionally provide a migration name: `wasp db migrate-dev --name added_new_field`
+
+### Adding New Features
+
+To add new features:
+
+1. Define new entities in `main.wasp` if needed
+2. Add new actions/queries in `main.wasp`
+3. Implement the server-side functions in `src/server/`
+4. Create new React components in `src/client/`
+5. Update routes in `main.wasp` if needed
+
+## Conclusion
+
+Your Grey Literature Search application is now ready to be developed and deployed using Wasp. The main.wasp file serves as the central configuration point, while your existing React components and server code provide the actual functionality.
+
+Remember that Wasp handles many aspects of the application automatically, such as authentication, routing, and database operations, allowing you to focus on your application's specific features.
+
+Happy coding!
