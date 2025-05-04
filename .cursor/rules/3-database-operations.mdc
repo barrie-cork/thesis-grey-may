@@ -3,210 +3,50 @@ description:
 globs: 
 alwaysApply: false
 ---
-# 3. Thesis Grey Database, Entities, and Operations
-
-This document covers how Thesis Grey uses Wasp's database, entities, and operations architecture for its specific needs.
-
 ## Thesis Grey Database and Entities
 
 - Thesis Grey uses PostgreSQL with Prisma for database access.
-- Entity models are defined directly in `main.wasp` using the entity syntax.
-- The core entities include:
-  - `User`: Authentication and user identification
-  - `SearchSession`: Top-level container for search workflows
-  - `SearchQuery`: Individual search queries within a session
-  - `SearchExecution`: Records of search query executions
-  - `RawSearchResult`: Unprocessed results from search engines
-  - `ProcessedResult`: Normalized search results with metadata
-  - `DuplicateRelationship`: Records of duplicate results
-  - `ReviewTag`: Tags for categorizing results
-  - `ReviewTagAssignment`: Many-to-many relationship between results and tags
-  - `Note`: User annotations on results
+- **Entity models are defined *exclusively* in `schema.prisma`**. The `main.wasp` file should *not* contain `entity` or `schema prisma { ... }` declarations (valid for Wasp v0.14+).
+- `main.wasp` *references* entities (e.g., in `app.auth.userEntity` or the `entities` list for queries/actions) to provide context to operations.
+- Core entities are defined in `schema.prisma` (ensure `User`, `Auth`, `AuthIdentity`, `Session` are present if using built-in auth).
 
-## Entity Relationships in Thesis Grey
+### Server-Side Query/Action Implementation (TypeScript)
 
-- `User` to `SearchSession`: One-to-many (User owns multiple search sessions)
-- `SearchSession` to `SearchQuery`: One-to-many (Session contains multiple queries)
-- `SearchQuery` to `SearchExecution`: One-to-many (Query can be executed multiple times)
-- `SearchExecution` to `RawSearchResult`: One-to-many (Execution produces multiple results)
-- `RawSearchResult` to `ProcessedResult`: One-to-one (Each raw result is processed once)
-- `ProcessedResult` to `ReviewTagAssignment`: One-to-many (Results can have multiple tags)
-- `ReviewTag` to `ReviewTagAssignment`: One-to-many (Tag can be applied to multiple results)
-- `ProcessedResult` to `DuplicateRelationship`: One-to-many bidirectional (Results can be duplicates of other results)
+- **Fetching Relations:** Use Prisma's `include` or `select` within server functions (`*.queries.ts`, `*.actions.ts`) to fetch related data.
+- **Typing Server Operations (Queries/Actions):**
+    - Import the generated operation type from `wasp/server/operations` (e.g., `import { type GetMyQuery } from 'wasp/server/operations'`, `import { type MyAction } from 'wasp/server/operations'`).
+    - **Recommended:** Use the `satisfies` keyword on the operation implementation. This allows TypeScript and Wasp to infer the precise types for `args`, `context` (including `context.user` and `context.entities` based on `main.wasp`), and the return type.
+      ```typescript
+      // In src/server/{feature}/actions.ts
+      import { type MyAction } from 'wasp/server/operations'
+      
+      export const myAction = (async (args, context) => {
+        // args type inferred from usage (e.g., args.description)
+        // context type inferred from main.wasp (e.g., context.user, context.entities.MyEntity)
+        if (!context.user) { throw new HttpError(401); }
+        const result = await context.entities.MyEntity.create({ data: { description: args.description, userId: context.user.id } });
+        return result; // Return type inferred
+      }) satisfies MyAction;
+      ```
+    - **Fallback (if `satisfies` inference fails, e.g., `args` becomes `never`):** Explicitly type the `args` parameter inline. Type casting `context` is generally *not* needed if `entities` are correctly listed in `main.wasp`.
+      ```typescript
+      import { type MyAction } from 'wasp/server/operations'
+      import { type User, type MyEntity } from 'wasp/entities' // Import User for context typing if needed
+      
+      export const myAction = (async (
+        args: { description: string }, // Explicit args type
+        context // Context type usually still inferred correctly
+      ) => { 
+        // Optional: const { user, entities } = context as { user: User | null, entities: { MyEntity: any } }; 
+        if (!context.user) { throw new HttpError(401); }
+        // ... implementation ...
+      }) satisfies MyAction; // Still use satisfies for overall check
+      ```
+    - Explicitly typing the function signature (`const myAction: MyAction<ArgsType, ReturnType> = ...`) is generally discouraged as it's more verbose and error-prone than `satisfies`.
 
-## Using Entities in Thesis Grey Operations
+## Database Migrations
 
-The core operations in Thesis Grey include:
-
-### Search Strategy Operations
-
-- Query `getSearchSessions`:
-  ```typescript
-  // In src/server/searchStrategy/queries.js
-  export const getSearchSessions = async (args, context) => {
-    if (!context.user) {
-      throw new HttpError(401, "Unauthorized");
-    }
-    
-    return context.entities.SearchSession.findMany({
-      where: { userId: context.user.id },
-      orderBy: { updatedAt: 'desc' }
-    });
-  };
-  ```
-
-- Action `createSearchSession`:
-  ```typescript
-  // In src/server/searchStrategy/actions.js
-  export const createSearchSession = async ({ name, description }, context) => {
-    if (!context.user) {
-      throw new HttpError(401, "Unauthorized");
-    }
-    
-    return context.entities.SearchSession.create({
-      data: {
-        name,
-        description,
-        userId: context.user.id
-      }
-    });
-  };
-  ```
-
-### SERP Execution Operations
-
-- Action `executeSearchQuery`:
-  ```typescript
-  // In src/server/serpExecution/actions.js
-  export const executeSearchQuery = async ({ queryId }, context) => {
-    if (!context.user) {
-      throw new HttpError(401, "Unauthorized");
-    }
-    
-    const query = await context.entities.SearchQuery.findUnique({
-      where: { id: queryId },
-      include: { searchSession: true }
-    });
-    
-    if (!query) {
-      throw new HttpError(404, "Query not found");
-    }
-    
-    if (query.searchSession.userId !== context.user.id) {
-      throw new HttpError(403, "Access denied");
-    }
-    
-    // Create execution record
-    const execution = await context.entities.SearchExecution.create({
-      data: {
-        queryId,
-        sessionId: query.sessionId,
-        status: 'running'
-      }
-    });
-    
-    // Logic to execute search in background
-    
-    return execution;
-  };
-  ```
-
-### Results Manager Operations
-
-- Action `processSessionResults`:
-  ```typescript
-  // In src/server/resultsManager/actions.js
-  export const processSessionResults = async ({ sessionId }, context) => {
-    if (!context.user) {
-      throw new HttpError(401, "Unauthorized");
-    }
-    
-    const session = await context.entities.SearchSession.findUnique({
-      where: { id: sessionId }
-    });
-    
-    if (!session || session.userId !== context.user.id) {
-      throw new HttpError(403, "Access denied");
-    }
-    
-    // Process raw results into normalized results
-    // Detect duplicates
-    // Return processing summary
-  };
-  ```
-
-## Client-Side Operation Usage in Thesis Grey
-
-- Using Queries:
-  ```tsx
-  // In src/client/searchStrategy/pages/SearchStrategyPage.tsx
-  import { useQuery } from 'wasp/client/operations';
-  import { getSearchSessions } from 'wasp/client/operations';
-  
-  export function SearchStrategyPage() {
-    const { data: sessions, isLoading, error } = useQuery(getSearchSessions);
-    
-    if (isLoading) return <div>Loading...</div>;
-    if (error) return <div>Error: {error.message}</div>;
-    
-    return (
-      <div>
-        {sessions.map(session => (
-          <SessionCard key={session.id} session={session} />
-        ))}
-      </div>
-    );
-  }
-  ```
-
-- Using Actions:
-  ```tsx
-  // In a component
-  import { createSearchSession } from 'wasp/client/operations';
-  
-  // In a component method
-  const handleCreateSession = async () => {
-    try {
-      await createSearchSession({ 
-        name: sessionName,
-        description
-      });
-      // Handle success
-    } catch (error) {
-      // Handle error
-    }
-  };
-  ```
-
-## Authorization Pattern
-
-All operations in Thesis Grey follow a consistent authorization pattern:
-
-1. Check if user is authenticated
-2. Verify ownership of the resource being accessed
-3. Perform the operation only if authorized
-
-```typescript
-// Template pattern used throughout Thesis Grey
-export const someOperation = async (args, context) => {
-  // 1. Check authentication
-  if (!context.user) {
-    throw new HttpError(401, "Unauthorized");
-  }
-  
-  // 2. Fetch the resource
-  const resource = await context.entities.Resource.findUnique({
-    where: { id: args.resourceId }
-  });
-  
-  // 3. Verify ownership/permissions
-  if (!resource || resource.userId !== context.user.id) {
-    throw new HttpError(403, "Access denied");
-  }
-  
-  // 4. Proceed with operation
-  // ...
-}
-```
-
-This consistent pattern ensures that all data access is properly authorized throughout the application. 
+- After making **any** changes to `schema.prisma`, you **must** create and apply a database migration.
+- Run `wasp db migrate-dev --name <descriptive-migration-name>`.
+- Wasp automatically detects schema drift. If you see warnings during `wasp start` or runtime errors like `PrismaClientKnownRequestError: The table ... does not exist`, it means you likely forgot to migrate.
+- Consult the Wasp documentation for more advanced migration scenarios (production, seeding, etc.). 

@@ -1,0 +1,174 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["extendedWhereUnique"]
+}
+
+model User {
+  id                String             @id @default(uuid())
+  username          String             @unique
+  email             String?            @unique
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  searchSessions    SearchSession[]
+  reviewAssignments ReviewAssignment[]
+  auth              Auth?
+}
+
+model SearchSession {
+  id               String            @id @default(uuid())
+  name             String
+  description      String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  userId           String
+  user             User              @relation(fields: [userId], references: [id])
+  searchQueries    SearchQuery[]
+  searchExecutions SearchExecution[]
+  processedResults ProcessedResult[]
+  reviewTags       ReviewTag[]
+}
+
+model SearchQuery {
+  id               String            @id @default(uuid())
+  query            String
+  description      String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  sessionId        String
+  searchSession    SearchSession     @relation(fields: [sessionId], references: [id])
+  searchExecutions SearchExecution[]
+  rawSearchResults RawSearchResult[]
+}
+
+model SearchExecution {
+  id            String        @id @default(uuid())
+  status        String
+  startTime     DateTime      @default(now())
+  endTime       DateTime?
+  resultCount   Int?
+  error         String?
+  queryId       String
+  sessionId     String
+  searchQuery   SearchQuery   @relation(fields: [queryId], references: [id])
+  searchSession SearchSession @relation(fields: [sessionId], references: [id])
+}
+
+model RawSearchResult {
+  id                String           @id @default(uuid())
+  queryId           String
+  searchExecutionId String?
+  title             String
+  url               String
+  snippet           String?
+  rank              Int
+  searchEngine      String
+  rawResponse       Json
+  searchQuery       SearchQuery      @relation(fields: [queryId], references: [id])
+  processedResult   ProcessedResult?
+}
+
+model ProcessedResult {
+  id              String                  @id @default(uuid())
+  rawResultId     String                  @unique
+  sessionId       String
+  title           String
+  url             String
+  snippet         String?
+  metadata        Json
+  rawSearchResult RawSearchResult         @relation(fields: [rawResultId], references: [id])
+  searchSession   SearchSession           @relation(fields: [sessionId], references: [id])
+  reviewTags      ReviewTagAssignment[]
+  notes           Note[]
+  duplicateOf     DuplicateRelationship[] @relation("primaryResult")
+  duplicates      DuplicateRelationship[] @relation("duplicateResult")
+
+  @@index([sessionId])
+}
+
+model DuplicateRelationship {
+  id                String          @id @default(uuid())
+  primaryResultId   String
+  duplicateResultId String
+  similarityScore   Float
+  duplicateType     String
+  primaryResult     ProcessedResult @relation("primaryResult", fields: [primaryResultId], references: [id])
+  duplicateResult   ProcessedResult @relation("duplicateResult", fields: [duplicateResultId], references: [id])
+
+  @@unique([primaryResultId, duplicateResultId])
+  @@index([primaryResultId])
+  @@index([duplicateResultId])
+}
+
+model ReviewTag {
+  id            String                @id @default(uuid())
+  name          String
+  color         String
+  sessionId     String
+  searchSession SearchSession         @relation(fields: [sessionId], references: [id])
+  assignments   ReviewTagAssignment[]
+
+  @@unique([sessionId, name])
+}
+
+model ReviewTagAssignment {
+  id         String          @id @default(uuid())
+  tagId      String
+  resultId   String
+  tag        ReviewTag       @relation(fields: [tagId], references: [id])
+  result     ProcessedResult @relation(fields: [resultId], references: [id])
+  assignedAt DateTime        @default(now())
+
+  @@unique([tagId, resultId])
+  @@index([tagId])
+  @@index([resultId])
+}
+
+model ReviewAssignment {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+}
+
+model Note {
+  id        String          @id @default(uuid())
+  content   String
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  resultId  String
+  userId    String?
+  result    ProcessedResult @relation(fields: [resultId], references: [id])
+
+  @@index([resultId])
+}
+
+model Auth {
+  id         String         @id @default(uuid())
+  userId     String?        @unique
+  user       User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  identities AuthIdentity[]
+  sessions   Session[]
+}
+
+model AuthIdentity {
+  providerName   String
+  providerUserId String
+  providerData   String @default("{}")
+  authId         String
+  auth           Auth   @relation(fields: [authId], references: [id], onDelete: Cascade)
+
+  @@id([providerName, providerUserId])
+}
+
+model Session {
+  id        String   @id @unique
+  expiresAt DateTime
+  userId    String
+  auth      Auth     @relation(references: [id], fields: [userId], onDelete: Cascade)
+
+  @@index([userId])
+}

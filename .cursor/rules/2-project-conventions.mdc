@@ -3,94 +3,28 @@ description:
 globs: 
 alwaysApply: false
 ---
-# 2. Thesis Grey Project Conventions and Rules
-
-This document outlines the specific conventions, file structures, and general rules for the Thesis Grey project.
-
-## Quick Reference
-
-### Thesis Grey Architecture
-
-- Vertical slice architecture organized by features:
-  - `auth`: Authentication and user management
-  - `searchStrategy`: Search session and query management 
-  - `serpExecution`: Search API integration
-  - `resultsManager`: Results processing and duplicate detection
-  - `reviewResults`: Review workflow with tagging
-  - `reporting`: PRISMA flow diagrams and exports
-
-### Feature Directory Structure
-
-Each feature follows a consistent internal structure:
-```
-feature/
-├── pages/           # Page components that correspond to routes
-├── components/      # UI components specific to this feature
-├── hooks/           # Custom React hooks for this feature
-└── utils/           # Utility functions specific to this feature
-```
-
-### Common Patterns
-
-- Define all entities in `main.wasp`
-- Group feature code in:
-  - `src/client/{featureName}/pages/`: Page components
-  - `src/client/{featureName}/components/`: UI components
-  - `src/client/{featureName}/hooks/`: Feature-specific React hooks
-  - `src/client/{featureName}/utils/`: Feature-specific utility functions
-  - `src/client/{featureName}/types.ts`: Type definitions for the feature
-  - `src/server/{featureName}/queries.js`: Read operations
-  - `src/server/{featureName}/actions.js`: Write operations
-- Use Wasp operations (queries/actions) for client-server communication
-- **Wasp Imports:** Import from `wasp/...` not `@wasp/...` in `.ts`/`.tsx` files
-- Document features in `project_docs/architecture/` for reference
-
 ### Common Issues & Import Rules
 
 - **Wasp Imports in `.ts`/`.tsx`:** Always use the `wasp/...` prefix.
   - ✅ `import { useAuth } from 'wasp/client/auth'`
-  - ✅ `import type { SearchSession } from 'wasp/entities'`
+  - ✅ `import type { SearchSession } from 'wasp/entities'` // Types for entities defined in schema.prisma
   - ✅ `import { getSearchSessions, useQuery } from 'wasp/client/operations'`
   - ❌ `import { ... } from '@wasp/...'`
 - **Wasp Config Imports in `main.wasp`:** Imports of your code *must* start with `@src/`.
   - ✅ `component: import { LoginPage } from "@src/client/auth/pages/LoginPage"`
   - ❌ `component: import { LoginPage } from "../src/client/auth/pages/LoginPage"`
 - **Feature Component Imports:** Use relative paths for imports within the same feature.
-  - ✅ `import { CreateSessionForm } from '../components/CreateSessionForm'`
-  - ✅ `import { useSearchSessions } from '../hooks/useSearchSessions'`
-- **Cross-Feature Component Imports:** Use absolute paths when importing from another feature.
-  - ✅ `import { MainLayout } from '../../shared/components/MainLayout'`
 - **Wasp Actions Client-Side:** Call actions directly using `async/await`. Avoid `useAction` unless optimistic updates are needed.
   - ✅ `import { createSearchSession } from 'wasp/client/operations'; await createSearchSession({ name, description });`
-
-## Rules
-
-### General Rules
-
-- Always reference `main.wasp` as your source of truth for the app's configuration and structure.
-- Always reference `project_docs/architecture/` for information on app features and functionality.
-- Group feature code into feature directories (e.g., `src/client/searchStrategy`, `src/server/searchStrategy`).
-- Use TypeScript for all code (`.ts`/`.tsx`).
-- Follow the established feature pattern for new features:
-  1. Define entities in `main.wasp`
-  2. Add queries/actions in `main.wasp` 
-  3. Implement server operations in feature-specific directories
-  4. Create UI components in corresponding client directories
-
-### Component Organization Rules
-
-- **Pages:** Should be placed in `pages/` directory and focus on composition of components.
-- **Components:** All reusable UI elements should be in `components/` directory.
-- **Hooks:** Feature-specific hooks should be in `hooks/` directory.
-- **Utils:** Helper functions should be in `utils/` directory.
-- **Types:** Feature-specific type definitions should be in `types.ts` at the feature root level.
-- **Shared Components:** Truly shared components (like MainLayout) should be in `src/client/shared/components/`.
+- **Compilation Errors (`wasp start` / `wasp build`):**
+    - **`TS2305: Module '"wasp/entities"' has no exported member '...'` / `TS2307: Cannot find module ...`**: Often caused by:
+        - Incorrect import paths (check relative vs. absolute, `wasp/` vs `@src/`).
+        - Attempting to import from files/features that were deleted or refactored. Ensure corresponding directories (`src/client/...`, `src/server/...`) and `main.wasp` declarations are removed/updated.
+        - Trying to import entities directly from `wasp/entities` that are not defined in `schema.prisma`.
+    - **`main.wasp Parse Error`**: Check for syntax errors like missing closing braces `}` or invalid top-level declarations (e.g., `schema prisma { ... }` is **not** allowed in `main.wasp`).
+    - **`TSxxxx: Property '...' does not exist on type 'never'` (often on `args` in actions/queries):** Indicates a TS inference failure. Check the operation signature in `src/server/...`. See `3-database-operations.md` for preferred typing methods (`satisfies` vs. explicit `args` typing).
+    - **`TS2344: Type '...' does not satisfy constraint 'Payload'/'SuperJSONObject'`**: Operation arguments must be JSON-serializable. Simplify argument types if necessary.
 
 ### Feature-Specific Conventions
 
-- **Authentication:** Use the built-in user authentication system with usernameAndPassword method
-- **Search Strategy:** Implement session and query management with proper user authorization checks
-- **SERP Execution:** Use the Google Search API via Serper with proper error handling 
-- **Results Manager:** Implement URL normalization and metadata extraction
-- **Review Interface:** Build tag management with color coding and note functionality
-- **Reporting:** Generate PRISMA flow diagrams and statistics with export options
+- **Authentication:** Use the built-in user authentication system (`usernameAndPassword`, etc.). Remember that enabling auth requires specific entities (`User`, `Auth`, `AuthIdentity`, `Session`) defined in `schema.prisma` and a corresponding database migration (`wasp db migrate-dev`). 
