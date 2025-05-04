@@ -1,571 +1,711 @@
-# Thesis Grey: Product Requirements Document & Implementation Roadmap
+# Thesis Grey: Phase 1 PRD
 
-## Overview
+## Project Overview
 
-This document outlines the product requirements, implementation roadmap, and Wasp-specific guidelines for the Thesis Grey application Phase 1. It provides a structured approach to verify requirements and ensure proper implementation of all core features.
+Thesis Grey is a specialised search application designed to facilitate the discovery and management of grey literature for clinical guideline development. The application follows a phased implementation approach where Phase 1 delivers core functionality with a streamlined feature set, establishing the foundation for more advanced capabilities in Phase 2.
 
-## Phase 1 Core Features & Verification Checklist
+This PRD outlines the Phase 1 implementation, which follows Vertical Slice Architecture (VSA) principles to deliver a complete working application focused on essential features while providing clear extension points for future development.
 
-### 1. Authentication System
+### Project Goals
 
-**Requirements:**
-- [x] User registration with username and password
-- [x] User login functionality
-- [x] Protected routes with auth redirects
-- [x] User profile management
-- [x] Proper authentication configuration in main.wasp
+1. Provide researchers with tools to create and execute systematic search strategies
+2. Enable efficient processing and review of search results
+3. Support PRISMA-compliant workflows for literature reviews
+4. Establish a foundation that can be extended in Phase 2 without significant refactoring
 
-**Verification Steps:**
-1. Verify SignupPage works with `additionalFields` for username
-2. Confirm LoginPage correctly authenticates users
-3. Test protected routes redirect to login when unauthorized
-4. Validate userSignupFields implementation handles required fields
-5. Confirm onBeforeSignup hook implementation follows Wasp v0.16.0 pattern
-6. Test profile page displays user information
+## Database Architecture
 
-### 2. Search Strategy Builder
+### Overview
 
-**Requirements:**
-- [ ] Create and manage search sessions
-- [ ] Basic concept grouping (PIC framework)
-- [ ] Domain selection for searches
-- [ ] File type filtering
-- [ ] Query generation
-- [ ] Query preview
+Phase 1 will implement the full database schema designed to support both phases, with some fields remaining unused but available for Phase 2. The application will use Prisma ORM integrated with the Wasp framework for type-safe database operations.
 
-**Verification Steps:**
-1. Test creating a new search session
-2. Verify listing of user's search sessions
-3. Check query building with PIC framework components
-4. Validate domain selection functionality
-5. Test file type filtering options
-6. Confirm query generation produces correctly formatted output
-7. Verify query preview shows expected syntax
+### Database System
 
-### 3. SERP Execution 
-
-**Requirements:**
-- [ ] Integration with Google Search API via Serper
-- [ ] Basic pagination of search results
-- [ ] Progress tracking
-- [ ] Storage of raw search results
-- [ ] Error handling
-
-**Verification Steps:**
-1. Validate Google Search API connection with credentials
-2. Test search execution with various queries
-3. Verify pagination functionality for larger result sets
-4. Confirm progress tracking updates during search
-5. Check error handling for API failures
-6. Validate raw results are stored in the database
-
-### 4. Results Manager
-
-**Requirements:**
-- [ ] Process and normalize search results
-- [ ] URL normalization for consistency
-- [ ] Basic metadata extraction (domain, file type)
-- [ ] Result filtering and sorting
-- [ ] Result preview interface
-
-**Verification Steps:**
-1. Test batch processing of raw results
-2. Verify URL normalization works correctly
-3. Confirm metadata extraction for domains and file types
-4. Validate filtering options work as expected
-5. Test sorting functionality by different criteria
-6. Check preview interface displays result details correctly
-
-### 5. Review Results
-
-**Requirements:**
-- [ ] Basic inclusion/exclusion tagging
-- [ ] Simple notes system
-- [ ] Result filtering by tags
-- [ ] Review progress tracking
-- [ ] PRISMA-compliant workflow
-
-**Verification Steps:**
-1. Test tag creation functionality
-2. Verify assigning tags to results
-3. Confirm notes can be added to results
-4. Validate filtering results by tag
-5. Check review progress tracking metrics
-6. Ensure workflow follows PRISMA guidelines
-
-### 6. Reporting & Export
-
-**Requirements:**
-- [ ] Basic PRISMA flow diagrams
-- [ ] Simple report generation
-- [ ] Export in CSV and JSON formats
-- [ ] Basic statistics on search results
-
-**Verification Steps:**
-1. Validate PRISMA flow diagram generation
-2. Test report generation with various criteria
-3. Verify CSV export format and content
-4. Check JSON export format and content
-5. Confirm statistics calculations are accurate
-
-## Wasp-specific Implementation Guidelines
-
-### Authentication Implementation
-
-```typescript
-// userSignupFields.ts
-import { UserSignupFields } from 'wasp/auth/providers/types';
-
-export const userSignupFields: UserSignupFields = {
-  username: async (data: any) => {
-    if (!data.username) {
-      throw new Error('Username is required');
+```wasp
+app ThesisGrey {
+  title: "Thesis Grey",
+  wasp: { version: "^0.16.0" },
+  db: {
+    system: PostgreSQL,
+    prisma: {
+      clientPreviewFeatures: ["extendedWhereUnique"]
     }
-    return data.username;
   }
-};
-
-// hooks.ts
-import { OnBeforeSignupHook } from 'wasp/server/auth';
-
-export const onBeforeSignup: OnBeforeSignupHook = async ({ providerId, req, prisma }) => {
-  // Validation only - no return value in Wasp v0.16.0
-  console.log('Signup request received for provider ID:', providerId);
-};
-
-// SignupPage.tsx
-import { SignupForm } from 'wasp/client/auth';
-
-export function SignupPage() {
-  return (
-    <div>
-      <SignupForm additionalFields={[
-        {
-          name: 'username',
-          type: 'input',
-          label: 'Username',
-          validations: {
-            required: 'Username is required'
-          }
-        }
-      ]} />
-    </div>
-  );
 }
 ```
 
-### UI Component Implementation with Shadcn UI
-
-Thesis Grey uses Shadcn UI for consistent, accessible UI components. Follow these patterns:
-
-```typescript
-// Import Shadcn UI components
-import { Button } from '../../shared/components/ui/button';
-import { Card, CardHeader, CardContent, CardFooter } from '../../shared/components/ui/card';
-import { Input } from '../../shared/components/ui/input';
-
-// Example form component using Shadcn UI
-function SearchForm({ onSubmit }) {
-  const [query, setQuery] = useState('');
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSubmit(query);
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <h3 className="text-lg font-semibold">Search Form</h3>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <Input
-            placeholder="Enter search terms..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          <Button type="submit">Search</Button>
-        </form>
-      </CardContent>
-    </Card>
-  );
-}
-```
-
-### Database Operations
-
-When implementing database operations, follow this pattern for type safety:
-
-```typescript
-import { HttpError } from 'wasp/server';
-import { type GetSearchSessions } from 'wasp/server/operations';
-
-export const getSearchSessions = (async (args, context) => {
-  if (!context.user) {
-    throw new HttpError(401, 'Not authorized');
-  }
-
-  try {
-    const sessions = await context.entities.SearchSession.findMany({
-      where: { userId: context.user.id },
-      // Include other query options...
-    });
-
-    return sessions;
-  } catch (error) {
-    console.error('Error:', error);
-    throw new HttpError(500, 'Server error');
-  }
-}) satisfies GetSearchSessions;
-```
-
-### Entity Relationships
-
-Entity relationships should be defined in `schema.prisma` following this pattern:
+### Core Entities
 
 ```prisma
+// User and Authentication
 model User {
-  id            Int            @id @default(autoincrement())
-  // Auth fields handled by Wasp
-  username      String         @unique
-  searchSessions SearchSession[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id                 String            @id @default(uuid())
+  username           String            @unique
+  email              String?           @unique
+  password           String            // Hashed password
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  searchSessions     SearchSession[]
+  reviewAssignments  ReviewAssignment[]
 }
 
+// Search Session
 model SearchSession {
-  id            Int            @id @default(autoincrement())
-  name          String
-  description   String?
-  userId        Int
-  user          User           @relation(fields: [userId], references: [id])
-  searchQueries SearchQuery[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id                String            @id @default(uuid())
+  name              String
+  description       String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  userId            String
+  user              User              @relation(fields: [userId], references: [id])
+  searchQueries     SearchQuery[]
+  searchExecutions  SearchExecution[]
+  processedResults  ProcessedResult[]
+  reviewTags        ReviewTag[]
+}
+
+// Search Query
+model SearchQuery {
+  id                String            @id @default(uuid())
+  query             String
+  description       String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  sessionId         String
+  searchSession     SearchSession     @relation(fields: [sessionId], references: [id])
+  searchExecutions  SearchExecution[]
+  rawSearchResults  RawSearchResult[]
+}
+
+// Search Execution
+model SearchExecution {
+  id                String            @id @default(uuid())
+  status            String            // running, completed, failed
+  startTime         DateTime          @default(now())
+  endTime           DateTime?
+  resultCount       Int?
+  error             String?
+  queryId           String
+  sessionId         String
+  searchQuery       SearchQuery       @relation(fields: [queryId], references: [id])
+  searchSession     SearchSession     @relation(fields: [sessionId], references: [id])
+}
+
+// Raw Search Result
+model RawSearchResult {
+  id                String            @id @default(uuid())
+  queryId           String
+  title             String
+  url               String
+  snippet           String?
+  rank              Int
+  searchEngine      String
+  rawResponse       Json
+  searchQuery       SearchQuery       @relation(fields: [queryId], references: [id])
+  processedResult   ProcessedResult?
+}
+
+// Processed Result
+model ProcessedResult {
+  id                String            @id @default(uuid())
+  rawResultId       String            @unique
+  sessionId         String
+  title             String
+  url               String
+  snippet           String?
+  metadata          Json
+  rawSearchResult   RawSearchResult   @relation(fields: [rawResultId], references: [id])
+  searchSession     SearchSession     @relation(fields: [sessionId], references: [id])
+  reviewTags        ReviewTagAssignment[]
+  notes             Note[]
+  duplicateOf       DuplicateRelationship[] @relation("primaryResult")
+  duplicates        DuplicateRelationship[] @relation("duplicateResult")
+}
+
+// Duplicate Relationship (Basic implementation for Phase 1)
+model DuplicateRelationship {
+  id                String            @id @default(uuid())
+  primaryResultId   String
+  duplicateResultId String
+  similarityScore   Float
+  duplicateType     String
+  primaryResult     ProcessedResult   @relation("primaryResult", fields: [primaryResultId], references: [id])
+  duplicateResult   ProcessedResult   @relation("duplicateResult", fields: [duplicateResultId], references: [id])
+}
+
+// Review Tag
+model ReviewTag {
+  id                String            @id @default(uuid())
+  name              String
+  color             String
+  sessionId         String
+  searchSession     SearchSession     @relation(fields: [sessionId], references: [id])
+  assignments       ReviewTagAssignment[]
+}
+
+// Review Tag Assignment
+model ReviewTagAssignment {
+  id                String            @id @default(uuid())
+  tagId             String
+  resultId          String
+  tag               ReviewTag         @relation(fields: [tagId], references: [id])
+  result            ProcessedResult   @relation(fields: [resultId], references: [id])
+}
+
+// Review Assignment (Simplified for Phase 1)
+model ReviewAssignment {
+  id                String            @id @default(uuid())
+  userId            String
+  user              User              @relation(fields: [userId], references: [id])
+}
+
+// Note
+model Note {
+  id                String            @id @default(uuid())
+  content           String
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  resultId          String
+  result            ProcessedResult   @relation(fields: [resultId], references: [id])
 }
 ```
 
-### Client-side Data Fetching
+## Project Structure
 
-```typescript
-import { useQuery } from 'wasp/client/operations';
-import { getSearchSessions } from 'wasp/client/operations';
+Phase 1 will follow Vertical Slice Architecture (VSA) using the Wasp framework. This approach organizes code around features rather than technical layers, leading to better cohesion and simpler testing.
 
-function SearchSessionsList() {
-  const { data: sessions, isLoading, error } = useQuery(getSearchSessions);
-  
-  if (isLoading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error.message}</div>;
-  
-  return (
-    <ul>
-      {sessions?.map(session => (
-        <li key={session.id}>{session.name}</li>
-      ))}
-    </ul>
-  );
-}
+### Core Structure
+
+```
+thesis-grey/
+├── main.wasp                 # Main Wasp configuration
+├── src/
+│   ├── client/               # Client-side code
+│   │   ├── auth/             # Authentication UI components
+│   │   ├── searchStrategy/   # Search strategy builder components
+│   │   ├── serpExecution/    # Search execution components
+│   │   ├── resultsManager/   # Results processing components
+│   │   ├── reviewResults/    # Review interface components
+│   │   ├── reporting/        # Basic reporting components
+│   │   └── shared/           # Shared UI components
+│   ├── server/               # Server-side code
+│   │   ├── auth/             # Authentication logic
+│   │   ├── searchStrategy/   # Search strategy logic
+│   │   ├── serpExecution/    # Search execution logic
+│   │   ├── resultsManager/   # Results processing logic
+│   │   ├── reviewResults/    # Review logic
+│   │   ├── reporting/        # Reporting logic
+│   │   └── shared/           # Shared server utilities
+│   └── shared/               # Code shared between client and server
+│       ├── types.ts          # TypeScript types
+│       └── utils.ts          # Utility functions
+├── public/                   # Public assets
+└── migrations/               # Database migrations
 ```
 
-## Development Workflow & Commands
+### Vertical Slice Implementation
 
-### Setup & Starting Development
+Each feature will follow a vertical slice structure:
 
-```bash
-# Start the application in development mode
-wasp start
-
-# After changing entity definitions, apply migrations
-wasp db migrate-dev
-
-# Open database studio for inspection
-wasp db studio
+```
+feature/
+├── client/
+│   ├── components/           # React components
+│   ├── hooks/                # React hooks
+│   └── pages/                # Page components
+├── server/
+│   ├── actions.ts            # Wasp actions
+│   ├── queries.ts            # Wasp queries
+│   └── utils.ts              # Server-side utilities
+└── shared/
+    └── types.ts              # Shared types
 ```
 
-### Database Operations
+## Tech Stack
 
-After any changes to entity models in `schema.prisma`:
-
-1. Stop `wasp start` (if running)
-2. Run `wasp db migrate-dev` and provide a name for the migration
-3. Restart the application with `wasp start`
-
-### UI Setup with Shadcn UI
-
-1. Global CSS and Tailwind configuration is already set up for Shadcn UI
-2. New components can be added to the UI library in `src/client/shared/components/ui/`
-3. Use the existing CSS variables for theming in `src/client/global.css`
-
-### Debugging
-
-- Server-side logs appear in the terminal running `wasp start`
-- Client-side errors can be viewed in the browser console
-- Use `console.log()` statements strategically for debugging
-- `wasp db studio` provides a visual interface to inspect database content
-
-## Implementation Roadmap
-
-### Week 1: Authentication & Core Setup
-- [x] Complete authentication system
-- [x] Set up user profiles
-- [x] Verify auth flows work correctly
-- [x] Implement Shadcn UI component library
-
-### Week 2: Search Strategy Builder
-- [ ] Implement search session creation and management
-- [ ] Develop PIC framework components
-- [ ] Add domain and file type filtering
-- [ ] Create query builder interface
-
-### Week 3: SERP Execution
-- [ ] Integrate with Google Search API
-- [ ] Implement search execution flow
-- [ ] Add progress tracking
-- [ ] Handle pagination and result storage
-
-### Week 4: Results Processing
-- [ ] Develop result normalization logic
-- [ ] Implement metadata extraction
-- [ ] Create filtering and sorting interface
-- [ ] Build result preview component
-
-### Week 5: Review Interface
-- [ ] Create tagging system
-- [ ] Implement notes functionality
-- [ ] Develop filtered views by tag
-- [ ] Add review progress tracking
-
-### Week 6: Reporting & Testing
-- [ ] Build PRISMA flow diagram generation
-- [ ] Implement export functionality
-- [ ] Add statistics calculations
-- [ ] Comprehensive testing of all features
-
-## Error Handling Best Practices
-
-1. **Client-side:**
-   - Use try/catch blocks around async operations
-   - Display user-friendly error messages
-   - Implement loading states for better UX
-
-2. **Server-side:**
-   - Use `HttpError` from 'wasp/server' with appropriate status codes
-   - Log errors with context information
-   - Return meaningful error messages
-
-Example:
-```typescript
-try {
-  // Operation code
-} catch (error) {
-  // If already an HttpError, rethrow
-  if (error instanceof HttpError) throw error;
-  
-  // Otherwise create a new HttpError
-  console.error('Operation failed:', error);
-  throw new HttpError(500, 'Operation failed. Please try again.');
-}
-```
-
-## Conclusion
-
-This document provides a comprehensive roadmap for implementing Phase 1 of the Thesis Grey application. By following the verification steps for each feature and adhering to the Wasp-specific guidelines, the UI team can efficiently develop the application while ensuring it meets all requirements. 
-
-# Thesis Grey: Technology Stack
-
-## Overview
-
-Thesis Grey is implemented using the Wasp framework, a full-stack web application development platform that integrates React, Node.js, and Prisma. This document details the technology stack and architectural decisions made to optimize development efficiency and maintainability.
-
-## Core Technologies
-
-### Full-Stack Framework
-- **Wasp**: A declarative DSL that generates and integrates code for web applications
-  - Version: ^0.16.0
-  - Provides integrated authentication, routing, database access, and API layer
+Phase 1 will utilize the Wasp full-stack framework, which integrates several modern technologies:
 
 ### Frontend
-- **React**: UI component library
+- **React**: UI library
 - **TypeScript**: Type-safe JavaScript
 - **TailwindCSS**: Utility-first CSS framework
-- **Shadcn UI**: Component library built on Radix UI primitives and styled with TailwindCSS
-  - Provides accessible, customizable UI components
-  - Uses class-variance-authority for component variants
-  - Components are installed directly into the codebase
-  - Themed using CSS variables in global.css
 - **React Router**: Client-side routing (provided by Wasp)
 
 ### Backend
 - **Node.js**: JavaScript runtime
 - **Express**: Web server framework (provided by Wasp)
 - **Prisma**: ORM for database operations
-- **JWT**: Authentication tokens (managed by Wasp)
+- **JWT**: Authentication tokens
 
 ### Database
 - **PostgreSQL**: Relational database
 
-### External APIs
+### DevOps
+- **Docker**: Containerization (for production)
+- **GitHub Actions**: CI/CD
+
+### APIs
 - **Google Search API via Serper**: For search execution
 
-## Architecture
+## Core Requirements by Feature
 
-Thesis Grey follows a Vertical Slice Architecture (VSA) while leveraging Wasp's built-in capabilities for common full-stack concerns:
+### 1. Authentication Feature
 
-### Core Layers
+**Full Implementation in Phase 1**
 
-#### Domain Layer
-- Business entities defined exclusively in schema.prisma
-- Domain logic in feature-specific directories
+```wasp
+app ThesisGrey {
+  // ...
+  auth: {
+    userEntity: User,
+    methods: {
+      usernameAndPassword: {},
+    },
+    onAuthFailedRedirectTo: "/login"
+  }
+}
 
-#### Application Layer
-- Use cases implemented via Wasp actions and queries
-- Authentication using Wasp's built-in auth system with userSignupFields
-- Error handling using Wasp's HttpError
+route LoginRoute { path: "/login", to: LoginPage }
+page LoginPage {
+  component: import { LoginPage } from "@src/client/auth/pages/LoginPage"
+}
 
-#### Infrastructure Layer
-Minimized through the use of Wasp's capabilities:
-- **Authentication**: Wasp's built-in auth system with username/password
-- **Database Access**: Wasp's Prisma integration
-- **API Layer**: Implemented via Wasp actions and queries
-- **External Services**: Custom adapters for search APIs
+route SignupRoute { path: "/signup", to: SignupPage }
+page SignupPage {
+  component: import { SignupPage } from "@src/client/auth/pages/SignupPage"
+}
 
-#### Presentation Layer
-- React components with Wasp's routing system
-- Auto-generated React Query hooks for data fetching
-- Shadcn UI components for consistent UI patterns
-- Themed using CSS variables for design consistency
-
-### Cross-cutting Concerns
-
-#### Error Handling
-- Wasp's `HttpError` for operation failures
-- React error handling in UI components
-
-#### Logging
-- Console-based logging for development
-- Structured logging for production
-
-#### Security
-- Authentication via Wasp's built-in auth system
-- Authorization enforced in operations and routes
-
-#### State Management
-- **Client State**: React Query (provided by Wasp)
-- **Server State**: Prisma transactions
-
-## Project Structure
-
-```
-thesis-grey/
-├── main.wasp                 # Wasp configuration (routes, pages, auth, queries, actions)
-├── schema.prisma             # Database schema and entity definitions
-├── src/
-│   ├── client/               # Client-side code
-│   │   ├── auth/             # Authentication UI components
-│   │   │   └── pages/        # Auth page components (login, signup, profile)
-│   │   ├── searchStrategy/   # Search strategy builder components
-│   │   ├── serpExecution/    # Search execution components
-│   │   ├── resultsManager/   # Results processing components
-│   │   ├── reviewResults/    # Review interface components
-│   │   ├── reporting/        # Reporting components
-│   │   └── shared/           # Shared components
-│   │       ├── components/   # Shared UI components
-│   │       │   └── ui/       # Shadcn UI components
-│   │       └── lib/          # Shared utilities
-│   ├── server/               # Server-side code
-│   │   ├── auth/             # Authentication logic
-│   │   │   ├── actions.js    # Auth-related actions
-│   │   │   ├── queries.js    # Auth-related queries
-│   │   │   ├── hooks.ts      # Auth hooks like onBeforeSignup
-│   │   │   └── userSignupFields.ts # User field mapping for signup
-│   │   ├── searchStrategy/   # Search strategy logic
-│   │   ├── serpExecution/    # Search execution logic
-│   │   ├── resultsManager/   # Results processing logic
-│   │   ├── reviewResults/    # Review logic
-│   │   └── reporting/        # Reporting logic
-│   └── shared/               # Code shared between client and server
-├── public/                   # Public assets
-└── project_docs/             # Project documentation
+route ProfileRoute { path: "/profile", to: ProfilePage }
+page ProfilePage {
+  authRequired: true,
+  component: import { ProfilePage } from "@src/client/auth/pages/ProfilePage"
+}
 ```
 
-## Feature-Specific Implementation
+**Requirements:**
+- User registration and login
+- Profile management
+- JWT-based authentication
+- Basic role-based permissions (Researcher role)
+- Integration with Wasp authentication system
 
-### Authentication
-- Uses Wasp v0.16.0's built-in user authentication system
-- Username/password authentication
-- User signup field customization with `userSignupFields`
-- JWT-based session management
-- Protected routes using Wasp's `authRequired` property
-- Styled with Shadcn UI components for accessibility and modern design
+**Extension points for Phase 2:**
+- Advanced roles and permissions system
+- Organization-based access control
+- Collaboration features
 
-### Search Strategy Builder
-- Manages search sessions and queries
-- Implements PICO framework concept grouping
-- User-specific data with automatic authorization
-- Uses Shadcn UI Card components for session management interface
+### 2. Search Strategy Builder
 
-### SERP Execution
-- Integration with Google Search API via Serper
-- Asynchronous search execution
-- Progress tracking and error handling
-- UI feedback using Shadcn UI components
+**Phase 1 Implementation:**
 
-### Results Manager
-- Automated result processing
-- URL normalization for duplicate detection
-- Metadata extraction (domain, file type)
-- Results interface built with Shadcn UI for consistent user experience
+```wasp
+route SearchStrategyRoute { path: "/search-strategy", to: SearchStrategyPage }
+page SearchStrategyPage {
+  authRequired: true,
+  component: import { SearchStrategyPage } from "@src/client/searchStrategy/pages/SearchStrategyPage"
+}
 
-### Review Interface
-- Custom tagging system with color coding
-- Note-taking functionality
-- Results filtering by tags
+query getSearchSessions {
+  fn: import { getSearchSessions } from "@src/server/searchStrategy/queries.js",
+  entities: [SearchSession]
+}
+
+query getSearchSession {
+  fn: import { getSearchSession } from "@src/server/searchStrategy/queries.js",
+  entities: [SearchSession, SearchQuery]
+}
+
+action createSearchSession {
+  fn: import { createSearchSession } from "@src/server/searchStrategy/actions.js",
+  entities: [SearchSession]
+}
+
+action createSearchQuery {
+  fn: import { createSearchQuery } from "@src/server/searchStrategy/actions.js",
+  entities: [SearchQuery]
+}
+
+action updateSearchQuery {
+  fn: import { updateSearchQuery } from "@src/server/searchStrategy/actions.js",
+  entities: [SearchQuery]
+}
+```
+
+**Requirements:**
+- Basic concept grouping (Population, Interest, Context)
+- Domain selection
+- File type filtering
+- Simple query generation
+- Query preview
+- PICO framework support
+
+**Extension points for Phase 2:**
+- Advanced concept relationships
+- Query suggestion system
+- Query history and versioning
+- Visual query builder
+- Template library
+
+### 3. SERP Execution
+
+**Phase 1 Implementation:**
+
+```wasp
+route SearchExecutionRoute { path: "/search-execution/:sessionId", to: SearchExecutionPage }
+page SearchExecutionPage {
+  authRequired: true,
+  component: import { SearchExecutionPage } from "@src/client/serpExecution/pages/SearchExecutionPage"
+}
+
+query getSearchQueries {
+  fn: import { getSearchQueries } from "@src/server/serpExecution/queries.js",
+  entities: [SearchQuery]
+}
+
+query getSearchExecutions {
+  fn: import { getSearchExecutions } from "@src/server/serpExecution/queries.js",
+  entities: [SearchExecution]
+}
+
+action executeSearchQuery {
+  fn: import { executeSearchQuery } from "@src/server/serpExecution/actions.js",
+  entities: [SearchQuery, SearchExecution, RawSearchResult]
+}
+```
+
+**Requirements:**
+- Single API integration (Google Search API via Serper)
+- Basic pagination handling
+- Simple progress tracking
+- Search execution
+- Raw result storage
+- Basic error handling
+
+**Extension points for Phase 2:**
+- Multi-API integration
+- Advanced rate limiting and quota management
+- Sophisticated error recovery
+- Enhanced progress visualization
+- Parallel query execution
+- Search execution scheduling
+
+### 4. Results Manager
+
+**Phase 1 Implementation:**
+
+```wasp
+route ResultsManagerRoute { path: "/results/:sessionId", to: ResultsManagerPage }
+page ResultsManagerPage {
+  authRequired: true,
+  component: import { ResultsManagerPage } from "@src/client/resultsManager/pages/ResultsManagerPage"
+}
+
+query getRawResults {
+  fn: import { getRawResults } from "@src/server/resultsManager/queries.js",
+  entities: [RawSearchResult]
+}
+
+query getProcessedResults {
+  fn: import { getProcessedResults } from "@src/server/resultsManager/queries.js",
+  entities: [ProcessedResult]
+}
+
+action processSessionResults {
+  fn: import { processSessionResults } from "@src/server/resultsManager/actions.js",
+  entities: [RawSearchResult, ProcessedResult, DuplicateRelationship]
+}
+```
+
+**Requirements:**
+- Basic result processing and normalization
+- Simple URL normalization (for consistency, not for deduplication)
+- Basic metadata extraction (domain, file type)
+- Filtering and sorting of results
+- Result preview interface
+- Storage of search engine source for each result
+
+**Extension points for Phase 2:**
+- Multi-stage deduplication pipeline
+- Advanced metadata extraction
+- Manual duplicate management
+- Advanced filtering and categorization
+- Full-text search within results
+
+### 5. Review Results
+
+**Phase 1 Implementation:**
+
+```wasp
+route ReviewRoute { path: "/review/:sessionId", to: ReviewPage }
+page ReviewPage {
+  authRequired: true,
+  component: import { ReviewPage } from "@src/client/reviewResults/pages/ReviewPage"
+}
+
+query getReviewTags {
+  fn: import { getReviewTags } from "@src/server/reviewResults/queries.js",
+  entities: [ReviewTag]
+}
+
+query getResultsWithTags {
+  fn: import { getResultsWithTags } from "@src/server/reviewResults/queries.js",
+  entities: [ProcessedResult, ReviewTagAssignment, ReviewTag, Note]
+}
+
+action createReviewTag {
+  fn: import { createReviewTag } from "@src/server/reviewResults/actions.js",
+  entities: [ReviewTag]
+}
+
+action assignTag {
+  fn: import { assignTag } from "@src/server/reviewResults/actions.js",
+  entities: [ReviewTagAssignment]
+}
+
+action createNote {
+  fn: import { createNote } from "@src/server/reviewResults/actions.js",
+  entities: [Note]
+}
+```
+
+**Requirements:**
+- Basic inclusion/exclusion tagging
+- Simple notes system
+- Basic filtering
+- Progress tracking
 - PRISMA-compliant workflow
-- Tag management with Shadcn UI Button variants
 
-### Reporting & Export
-- PRISMA flow diagram visualization
-- Statistics and metrics
-- CSV and JSON export options
-- Uses Shadcn UI Button and Card components for report controls
+**Extension points for Phase 2:**
+- Advanced tagging system
+- Multi-reviewer support
+- Conflict resolution
+- Annotation tools
+- Bulk operations
+- Review analytics
 
-## Wasp-Specific Advantages
+### 6. Reporting & Export
 
-The Thesis Grey implementation leverages several key advantages of the Wasp framework:
+**Phase 1 Implementation:**
 
-1. **Reduced Boilerplate**: Wasp generates common patterns for auth, CRUD operations, and API endpoints
-2. **Type Safety**: Auto-generated TypeScript types from database schema
-3. **Integrated Auth**: Built-in authentication system that handles sessions, tokens, and user management
-4. **Unified Codebase**: Single repository with clear separation of concerns
-5. **Operations Pattern**: Standardized approach to client-server communication via actions and queries
+```wasp
+route ReportingRoute { path: "/reporting/:sessionId", to: ReportingPage }
+page ReportingPage {
+  authRequired: true,
+  component: import { ReportingPage } from "@src/client/reporting/pages/ReportingPage"
+}
 
-## TypeScript Integration
+query getReportData {
+  fn: import { getReportData } from "@src/server/reporting/queries.js",
+  entities: [SearchSession, ProcessedResult, ReviewTagAssignment, ReviewTag]
+}
 
-Wasp v0.16.0 provides strong TypeScript support that enhances developer experience:
+action exportResults {
+  fn: import { exportResults } from "@src/server/reporting/actions.js"
+}
+```
+
+**Requirements:**
+- Basic PRISMA flow diagram
+- Simple report generation
+- CSV and JSON export
+- Basic statistics
+
+**Extension points for Phase 2:**
+- Advanced PRISMA visualizations
+- Custom report templates
+- PDF export
+- Interactive dashboards
+- Extended analytics
+- Reference management integration
+
+## API Implementation Strategy
+
+For each feature, Phase 1 will implement a simplified version of the API that supports core functionality, using Wasp's operations pattern.
+
+### Example: SERP Execution API
 
 ```typescript
-// Entity types auto-generated from schema.prisma
-import type { User, SearchSession } from 'wasp/entities';
+// src/server/serpExecution/actions.js
+import { executeSearchInBackground } from '../shared/services/googleSearchApi';
 
-// Operation types auto-generated from main.wasp
-import { type GetSearchSessions } from 'wasp/server/operations';
+export const executeSearchQuery = async ({ queryId, maxResults = 100 }, context) => {
+  if (!context.user) {
+    throw new HttpError(401);
+  }
 
-// Client operations hooks auto-generated from main.wasp
-import { useQuery, getSearchSessions } from 'wasp/client/operations';
-
-// Implementation using the satisfies operator with inferred types
-export const getSearchSessions = (async (args, context) => {
-  // Implementation...
-}) satisfies GetSearchSessions;
+  try {
+    // Fetch the query
+    const query = await context.entities.SearchQuery.findUnique({
+      where: { id: queryId },
+      include: { searchSession: true }
+    });
+    
+    if (!query) {
+      throw new HttpError(404, 'Query not found');
+    }
+    
+    // Create execution record
+    const execution = await context.entities.SearchExecution.create({
+      data: {
+        queryId: query.id,
+        sessionId: query.sessionId,
+        status: 'running',
+        startTime: new Date()
+      }
+    });
+    
+    // Execute search (single API only in Phase 1)
+    // Use Google Search API via Serper
+    executeSearchInBackground(context.entities, execution.id, query, maxResults);
+    
+    return {
+      executionId: execution.id,
+      queryId: query.id,
+      status: 'running',
+      startTime: execution.startTime
+    };
+  } catch (error) {
+    console.error('Error executing query:', error);
+    throw new HttpError(500, 'An unexpected error occurred');
+  }
+};
 ```
 
-## Extension Points
+```typescript
+// src/shared/services/googleSearchApi.js
+import axios from 'axios';
 
-The architecture provides clear extension points for future enhancements:
+export const executeSearchInBackground = async (entities, executionId, query, maxResults) => {
+  try {
+    // Simple API handler for Google Search only
+    const serperApiKey = process.env.SERPER_API_KEY;
+    const results = await searchGoogle(query.query, maxResults, serperApiKey);
+    
+    // Store results
+    for (const result of results) {
+      await entities.RawSearchResult.create({
+        data: {
+          queryId: query.id,
+          title: result.title,
+          url: result.link,
+          snippet: result.snippet,
+          rank: result.position,
+          searchEngine: 'google',
+          rawResponse: result
+        }
+      });
+    }
+    
+    // Update execution status
+    await entities.SearchExecution.update({
+      where: { id: executionId },
+      data: {
+        status: 'completed',
+        endTime: new Date(),
+        resultCount: results.length
+      }
+    });
+  } catch (error) {
+    console.error('Error in background execution:', error);
+    
+    // Update execution status
+    await entities.SearchExecution.update({
+      where: { id: executionId },
+      data: {
+        status: 'failed',
+        endTime: new Date(),
+        error: error.message
+      }
+    });
+  }
+};
 
-1. **Advanced Search APIs**: Additional search engine integrations
-2. **Collaborative Review**: Multi-user annotation and review
-3. **Machine Learning**: Integration with NLP services for automated processing
-4. **Advanced Reporting**: Extended analysis and visualization options
-5. **UI Customization**: Extend Shadcn UI components for specialized features
+async function searchGoogle(query, maxResults, apiKey) {
+  const response = await axios.post('https://google.serper.dev/search', {
+    q: query,
+    num: maxResults
+  }, {
+    headers: {
+      'X-API-KEY': apiKey,
+      'Content-Type': 'application/json'
+    }
+  });
+  
+  return response.data.organic || [];
+}
+```
+
+## Deployment Strategy
+
+Phase 1, with its Wasp framework integration, will support multiple deployment options:
+
+1. **Development Environment**
+   - Use `wasp start` for local development
+   - Automatically starts both frontend and backend servers
+
+2. **Production Deployment Options**
+   - Docker containers with `wasp build` output
+   - Fly.io using Wasp's built-in deployment command: `wasp deploy fly`
+   - Standard Node.js hosting providers using the generated artifacts
+
+## Timeline and Milestones
+
+1. **Project Setup & Authentication** - 2 weeks
+   - Initialize Wasp project
+   - Implement authentication system
+   - Create user management
+
+2. **Search Strategy Builder** - 3 weeks
+   - Implement basic search strategy interface
+   - Create query generation logic
+
+3. **SERP Execution** - 2 weeks
+   - Integrate with Google Search API
+   - Implement search execution flow
+
+4. **Results Manager** - 3 weeks
+   - Build results processing pipeline
+   - Create results viewing interface
+
+5. **Review Results** - 2 weeks
+   - Implement basic review interface
+   - Create tagging and notes system
+
+6. **Reporting & Export** - 2 weeks
+   - Implement basic reporting
+   - Create export functionality
+
+7. **Testing & Refinement** - 2 weeks
+   - Comprehensive testing
+   - Bug fixes and refinements
+
+**Total Duration: 16 weeks (4 months)**
+
+## Success Criteria
+
+1. Researchers can create and execute search strategies
+2. Results can be processed, viewed, and tagged
+3. Basic reporting and export functionality is available
+4. Application is stable and performs reliably
+5. All extension points for Phase 2 are clearly defined
+
+## Risks and Mitigations
+
+| Risk | Impact | Likelihood | Mitigation |
+|------|--------|------------|------------|
+| API rate limits | High | Medium | Implement rate limiting and retry mechanisms |
+| Database performance | Medium | Low | Monitor performance and optimize queries |
+| User adoption | High | Medium | Focus on UX and gather early feedback |
+| Development delays | Medium | Medium | Prioritize core features and establish clear MVP |
+| Wasp framework limitations | Medium | Low | Identify fallback options for specific features if needed |
+
+## Next Steps
+
+Upon successful completion of Phase 1, the team will prepare for Phase 2 implementation by:
+
+1. Gathering user feedback from Phase 1
+2. Refining the roadmap for Phase 2 features
+3. Identifying any necessary architecture adjustments
+4. Planning the development timeline for Phase 2
+
+The Phase 1 implementation provides a solid foundation that enables researchers to begin using the system while establishing clear extension points for the more sophisticated capabilities planned for Phase 2.
