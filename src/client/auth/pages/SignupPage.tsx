@@ -18,7 +18,9 @@ export function SignupPage() {
           </p>
         </div>
         <div className="mt-8">
-          <SignupForm />
+          <SignupForm 
+            additionalFields={[]}
+          />
         </div>
       </div>
     </div>

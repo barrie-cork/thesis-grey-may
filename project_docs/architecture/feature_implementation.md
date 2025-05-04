@@ -4,16 +4,19 @@ This document provides an overview of how each core feature of Thesis Grey is im
 
 ## 1. Authentication Feature
 
-The authentication feature is implemented using Wasp's built-in authentication system.
+The authentication feature is implemented using Wasp v0.16.0's built-in authentication system.
 
 ### Configuration in main.wasp
 ```wasp
 auth: {
-  userEntity: User,
+  userEntity: User, // References the User entity in schema.prisma
   methods: {
-    usernameAndPassword: {},
+    usernameAndPassword: {
+      userSignupFields: import { userSignupFields } from "@src/server/auth/userSignupFields.ts"
+    }
   },
-  onAuthFailedRedirectTo: "/login"
+  onAuthFailedRedirectTo: "/login",
+  onBeforeSignup: import { onBeforeSignup } from "@src/server/auth/hooks.ts",
 }
 
 route LoginRoute { path: "/login", to: LoginPage }
@@ -34,58 +37,158 @@ page ProfilePage {
 }
 ```
 
+### Custom Field Handling
+
+Wasp v0.16.0 handles custom user fields during registration using `userSignupFields`:
+
+```typescript
+// src/server/auth/userSignupFields.ts
+import { UserSignupFields } from 'wasp/auth/providers/types';
+
+export const userSignupFields: UserSignupFields = {
+  username: async (data: any) => {
+    // Ensure username exists
+    if (!data.username) {
+      throw new Error('Username is required');
+    }
+    return data.username;
+  }
+};
+```
+
+The `onBeforeSignup` hook performs validation or preliminary checks:
+
+```typescript
+// src/server/auth/hooks.ts
+import { OnBeforeSignupHook } from 'wasp/server/auth';
+
+export const onBeforeSignup: OnBeforeSignupHook = async ({ providerId, req, prisma }) => {
+  // Validation or preliminary checks
+  console.log('Signup request received for provider ID:', providerId);
+  
+  // No return value needed (void)
+};
+```
+
 ### Client Implementation
 The client-side implementation uses Wasp's pre-built components and hooks:
 
 ```tsx
 // LoginPage.tsx
+import React from 'react';
 import { LoginForm } from 'wasp/client/auth';
+import { Link } from 'react-router-dom';
 
 export function LoginPage() {
   return (
-    <div className="container">
-      <h1>Login</h1>
-      <LoginForm />
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4">
+      <div className="max-w-md w-full space-y-8">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            Sign in to your account
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Or{' '}
+            <Link to="/signup" className="font-medium text-blue-600 hover:text-blue-500">
+              create a new account
+            </Link>
+          </p>
+        </div>
+        <LoginForm />
+      </div>
+    </div>
+  );
+}
+
+// SignupPage.tsx
+import React from 'react';
+import { SignupForm } from 'wasp/client/auth';
+import { Link } from 'react-router-dom';
+
+export function SignupPage() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4">
+      <div className="max-w-md w-full space-y-8">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            Create a new account
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Or{' '}
+            <Link to="/login" className="font-medium text-blue-600 hover:text-blue-500">
+              sign in to your existing account
+            </Link>
+          </p>
+        </div>
+        <div className="mt-8">
+          <SignupForm additionalFields={[]} />
+        </div>
+      </div>
     </div>
   );
 }
 
 // ProfilePage.tsx - Using useAuth hook
+import React from 'react';
 import { useAuth, logout } from 'wasp/client/auth';
 
 export function ProfilePage() {
   const { data: user } = useAuth();
   
   return (
-    <div>
-      <h1>Profile</h1>
-      <p>Username: {user?.username}</p>
-      <button onClick={logout}>Logout</button>
+    <div className="max-w-md mx-auto mt-10 p-6 bg-white rounded shadow">
+      <h1 className="text-2xl font-bold mb-6">Your Profile</h1>
+      <div className="mb-4">
+        <p className="text-gray-700 mb-2"><strong>Username:</strong> {user?.username}</p>
+        <p className="text-gray-700 mb-2"><strong>Email:</strong> {user?.email}</p>
+      </div>
+      <button 
+        onClick={logout}
+        className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+      >
+        Logout
+      </button>
     </div>
   );
 }
 ```
 
 ### Authorization in Operations
-Authorization is enforced in every operation:
+Authorization is enforced in every operation using the `satisfies` operator for type-safety:
 
 ```typescript
-// Example from a query
-export const getSearchSession = async ({ id }, context) => {
+// Example from a query in src/server/searchStrategy/queries.js
+import { HttpError } from 'wasp/server';
+import { type GetSearchSession } from 'wasp/server/operations';
+
+export const getSearchSession = (async (args, context) => {
   if (!context.user) {
     throw new HttpError(401, "Unauthorized");
   }
-  
-  const session = await context.entities.SearchSession.findUnique({
-    where: { id }
-  });
-  
-  if (session.userId !== context.user.id) {
-    throw new HttpError(403, "You don't have access to this session");
+
+  try {
+    const session = await context.entities.SearchSession.findFirst({
+      where: {
+        id: args.id,
+        userId: context.user.id
+      }
+    });
+
+    if (!session) {
+      throw new HttpError(404, "Search session not found or access denied");
+    }
+
+    return session;
+  } catch (error) {
+    // Re-throw HttpError instances
+    if (error instanceof HttpError) {
+      throw error;
+    }
+    
+    console.error('Error fetching search session:', error);
+    throw new HttpError(500, 'Failed to fetch search session');
   }
-  
-  return session;
-};
+}) satisfies GetSearchSession;
 ```
 
 ## 2. Search Strategy Builder
@@ -94,30 +197,78 @@ The search strategy builder allows users to create and manage search sessions an
 
 ### Configuration in main.wasp
 ```wasp
-query getSearchSessions {
-  fn: import { getSearchSessions } from "@src/server/searchStrategy/queries.js",
-  entities: [SearchSession]
+route SearchStrategyRoute { path: "/", to: SearchStrategyPage }
+page SearchStrategyPage {
+  component: import { SearchStrategyPage } from "@src/client/searchStrategy/pages/SearchStrategyPage",
+  authRequired: true
 }
 
-query getSearchSession {
-  fn: import { getSearchSession } from "@src/server/searchStrategy/queries.js",
-  entities: [SearchSession, SearchQuery]
+query getSearchSessions {
+  fn: import { getSearchSessions } from "@src/server/searchStrategy/queries.js",
+  entities: [User, SearchSession, SearchQuery, ProcessedResult]
 }
 
 action createSearchSession {
   fn: import { createSearchSession } from "@src/server/searchStrategy/actions.js",
-  entities: [SearchSession]
+  entities: [User, SearchSession]
+}
+
+query getSearchSession {
+  fn: import { getSearchSession } from "@src/server/searchStrategy/queries.js",
+  entities: [User, SearchSession, SearchQuery, ProcessedResult]
 }
 
 action createSearchQuery {
   fn: import { createSearchQuery } from "@src/server/searchStrategy/actions.js",
-  entities: [SearchQuery]
+  entities: [User, SearchSession, SearchQuery]
 }
 
 action updateSearchQuery {
   fn: import { updateSearchQuery } from "@src/server/searchStrategy/actions.js",
-  entities: [SearchQuery]
+  entities: [User, SearchSession, SearchQuery]
 }
+```
+
+### Search Session Query Implementation
+
+```typescript
+// src/server/searchStrategy/queries.js
+import { HttpError } from 'wasp/server';
+import { type GetSearchSessions } from 'wasp/server/operations';
+
+export const getSearchSessions = (async (args, context) => {
+  if (!context.user) {
+    throw new HttpError(401, 'Not authorized');
+  }
+
+  // Query structure for Phase 1 - simplified
+  const whereClause = { userId: context.user.id };
+  
+  try {
+    const sessions = await context.entities.SearchSession.findMany({
+      where: whereClause,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        createdAt: true,
+        updatedAt: true,
+        _count: {
+          select: {
+            searchQueries: true,
+            processedResults: true
+          }
+        }
+      }
+    });
+
+    return sessions;
+  } catch (error) {
+    console.error('Error fetching search sessions:', error);
+    throw new HttpError(500, 'Failed to fetch search sessions');
+  }
+}) satisfies GetSearchSessions;
 ```
 
 ### Implementation Highlights
@@ -134,13 +285,28 @@ action updateSearchQuery {
 3. **Client Implementation**
    ```tsx
    // Using Wasp's query hooks
-   const { data: sessions, isLoading } = useQuery(getSearchSessions);
+   import { useQuery } from 'wasp/client/operations';
+   
+   function SearchSessionsList() {
+     const { data: sessions, isLoading, error } = useQuery(getSearchSessions);
+     
+     if (isLoading) return <p>Loading...</p>;
+     if (error) return <p>Error: {error.message}</p>;
+     
+     return (
+       <ul>
+         {sessions?.map(session => (
+           <li key={session.id}>{session.name}</li>
+         ))}
+       </ul>
+     );
+   }
    
    // Creating a session
    const handleCreateSession = async () => {
      try {
        await createSearchSession({ name: sessionName, description });
-       refetch();
+       // Refetch sessions after creation
      } catch (error) {
        console.error("Failed to create session:", error);
      }
@@ -153,19 +319,15 @@ The SERP execution feature handles the running of search queries against externa
 
 ### Configuration in main.wasp
 ```wasp
-query getSearchQueries {
-  fn: import { getSearchQueries } from "@src/server/serpExecution/queries.js",
-  entities: [SearchQuery]
-}
-
-query getSearchExecutions {
-  fn: import { getSearchExecutions } from "@src/server/serpExecution/queries.js",
-  entities: [SearchExecution]
+route SearchExecutionRoute { path: "/execute-search", to: SearchExecutionPage }
+page SearchExecutionPage {
+  component: import { SearchExecutionPage } from "@src/client/serpExecution/pages/SearchExecutionPage",
+  authRequired: true
 }
 
 action executeSearchQuery {
   fn: import { executeSearchQuery } from "@src/server/serpExecution/actions.js",
-  entities: [SearchQuery, SearchExecution, RawSearchResult]
+  entities: [User, SearchQuery, SearchSession, SearchExecution, RawSearchResult]
 }
 ```
 
@@ -183,286 +345,214 @@ action executeSearchQuery {
 3. **Server Implementation**
    ```typescript
    // In src/server/serpExecution/actions.js
-   export const executeSearchQuery = async ({ queryId, maxResults = 100 }, context) => {
+   import { HttpError } from 'wasp/server';
+   import { type ExecuteSearchQuery } from 'wasp/server/operations';
+
+   export const executeSearchQuery = (async (args, context) => {
      if (!context.user) {
-       throw new HttpError(401, "Unauthorized");
+       throw new HttpError(401, 'Not authorized');
      }
-     
-     // Create execution record
-     const execution = await context.entities.SearchExecution.create({
-       data: {
-         queryId,
-         sessionId: query.sessionId,
-         status: 'running',
-         startTime: new Date()
-       }
-     });
-     
-     // Execute search in background
-     executeSearch(context.entities, execution.id, query, maxResults);
-     
-     return { executionId: execution.id, status: 'running' };
-   };
-   
-   // Helper function for search execution
-   async function executeSearch(entities, executionId, query, maxResults) {
+
      try {
-       // Call Google Search API via Serper
-       const results = await searchGoogle(query.query, maxResults);
+       // Fetch the query
+       const query = await context.entities.SearchQuery.findUnique({
+         where: { id: args.queryId },
+         include: { searchSession: true }
+       });
        
-       // Store results
-       for (const result of results) {
-         await entities.RawSearchResult.create({
-           data: {
-             queryId: query.id,
-             title: result.title,
-             url: result.link,
-             snippet: result.snippet,
-             rank: result.position,
-             searchEngine: 'google',
-             rawResponse: result
-           }
-         });
+       if (!query) {
+         throw new HttpError(404, 'Query not found');
        }
        
-       // Update execution status
-       await entities.SearchExecution.update({
-         where: { id: executionId },
-         data: { status: 'completed', endTime: new Date() }
+       // Authorization check
+       if (query.searchSession.userId !== context.user.id) {
+         throw new HttpError(403, 'Not authorized to execute this query');
+       }
+       
+       // Create execution record
+       const execution = await context.entities.SearchExecution.create({
+         data: {
+           queryId: query.id,
+           sessionId: query.sessionId,
+           status: 'running',
+           startTime: new Date()
+         }
        });
+       
+       // Start execution (could be implemented as a background job)
+       // This is a simplified example
+       executeSearchInBackground(context.entities, execution.id, query, args.maxResults || 100);
+       
+       return {
+         executionId: execution.id,
+         status: 'running'
+       };
      } catch (error) {
-       // Handle errors
-       await entities.SearchExecution.update({
-         where: { id: executionId },
-         data: { status: 'failed', error: error.message }
-       });
+       console.error('Error executing search query:', error);
+       if (error instanceof HttpError) throw error;
+       throw new HttpError(500, 'An error occurred while executing the search query');
      }
-   }
+   }) satisfies ExecuteSearchQuery;
    ```
 
 ## 4. Results Manager
 
-The results manager processes raw search results into normalized entries and handles duplicate detection.
+The results manager processes, normalizes, and manages search results.
 
 ### Configuration in main.wasp
 ```wasp
+route ResultsManagerRoute { path: "/results", to: ResultsManagerPage }
+page ResultsManagerPage {
+  component: import { ResultsManagerPage } from "@src/client/resultsManager/pages/ResultsManagerPage",
+  authRequired: true
+}
+
 query getRawResults {
   fn: import { getRawResults } from "@src/server/resultsManager/queries.js",
-  entities: [RawSearchResult]
+  entities: [User, SearchSession, RawSearchResult, SearchQuery, ProcessedResult]
 }
 
 query getProcessedResults {
   fn: import { getProcessedResults } from "@src/server/resultsManager/queries.js",
-  entities: [ProcessedResult]
+  entities: [User, SearchSession, ProcessedResult, RawSearchResult, SearchQuery, ReviewTagAssignment, ReviewTag, Note]
 }
 
 action processSessionResults {
   fn: import { processSessionResults } from "@src/server/resultsManager/actions.js",
-  entities: [RawSearchResult, ProcessedResult, DuplicateRelationship]
+  entities: [User, SearchSession, RawSearchResult, ProcessedResult, DuplicateRelationship]
 }
 ```
 
 ### Implementation Highlights
 
 1. **Result Processing**
-   - URL normalization for consistency
+   - Normalization of raw search results
+   - Basic duplicate detection via URL normalization
    - Metadata extraction (domain, file type)
-   - Basic duplicate detection based on normalized URLs
 
-2. **Client Implementation**
+2. **Result Management**
+   - Filtering and sorting capabilities
+   - Result preview interface
+   - Pagination for large result sets
+
+3. **Client Implementation**
    ```tsx
-   // Fetch raw and processed results
-   const rawResultsQuery = useQuery(getRawResults, { sessionId });
-   const processedResultsQuery = useQuery(getProcessedResults, { sessionId });
+   import { useQuery } from 'wasp/client/operations';
    
-   // Process results
-   const handleProcessResults = async () => {
-     try {
-       setIsProcessing(true);
-       const result = await processSessionResults({ sessionId });
-       // Refresh data
-       rawResultsQuery.refetch();
-       processedResultsQuery.refetch();
-     } catch (error) {
-       console.error("Failed to process results:", error);
-     } finally {
-       setIsProcessing(false);
-     }
-   };
-   ```
-
-3. **Server Implementation**
-   ```typescript
-   // URL normalization
-   function normalizeUrl(url) {
-     let normalized = url.trim().toLowerCase();
-     normalized = normalized.replace(/^https?:\/\//, '');
-     normalized = normalized.replace(/^www\./, '');
-     normalized = normalized.replace(/\/$/, '');
-     return normalized;
-   }
-   
-   // Duplicate detection
-   async function findDuplicates(context, newResult, duplicateRelationships) {
-     const normalizedUrl = normalizeUrl(newResult.url);
+   function ProcessedResultsList({ sessionId }) {
+     const { data: results, isLoading, error } = useQuery(getProcessedResults, { sessionId });
      
-     const potentialDuplicates = await context.entities.ProcessedResult.findMany({
-       where: {
-         url: normalizedUrl,
-         id: { not: newResult.id }
-       }
-     });
+     if (isLoading) return <p>Loading results...</p>;
+     if (error) return <p>Error: {error.message}</p>;
      
-     for (const duplicate of potentialDuplicates) {
-       await context.entities.DuplicateRelationship.create({
-         data: {
-           primaryResultId: duplicate.id < newResult.id ? duplicate.id : newResult.id,
-           duplicateResultId: duplicate.id < newResult.id ? newResult.id : duplicate.id,
-           similarityScore: 1.0,
-           duplicateType: 'url_match'
-         }
-       });
-     }
+     return (
+       <div>
+         <h2>Processed Results ({results?.length || 0})</h2>
+         <ul>
+           {results?.map(result => (
+             <li key={result.id}>
+               <h3>{result.title}</h3>
+               <p>{result.snippet}</p>
+               <a href={result.url} target="_blank" rel="noopener noreferrer">
+                 {result.url}
+               </a>
+             </li>
+           ))}
+         </ul>
+       </div>
+     );
    }
    ```
 
 ## 5. Review Results
 
-The review interface allows users to tag and annotate processed results.
+The review results feature allows users to tag, annotate, and manage search results.
 
 ### Configuration in main.wasp
 ```wasp
+route ReviewRoute { path: "/review", to: ReviewPage }
+page ReviewPage {
+  component: import { ReviewPage } from "@src/client/reviewResults/pages/ReviewPage",
+  authRequired: true
+}
+
 query getReviewTags {
   fn: import { getReviewTags } from "@src/server/reviewResults/queries.js",
-  entities: [ReviewTag]
+  entities: [User, SearchSession, ReviewTag]
 }
 
 query getResultsWithTags {
   fn: import { getResultsWithTags } from "@src/server/reviewResults/queries.js",
-  entities: [ProcessedResult, ReviewTagAssignment, ReviewTag, Note]
+  entities: [User, SearchSession, ProcessedResult, ReviewTagAssignment, ReviewTag, Note, RawSearchResult, SearchQuery]
 }
 
 action createReviewTag {
   fn: import { createReviewTag } from "@src/server/reviewResults/actions.js",
-  entities: [ReviewTag]
+  entities: [User, SearchSession, ReviewTag]
 }
 
 action assignTag {
   fn: import { assignTag } from "@src/server/reviewResults/actions.js",
-  entities: [ReviewTagAssignment]
+  entities: [User, ProcessedResult, SearchSession, ReviewTagAssignment, ReviewTag]
 }
 
 action createNote {
   fn: import { createNote } from "@src/server/reviewResults/actions.js",
-  entities: [Note]
+  entities: [User, ProcessedResult, SearchSession, Note]
 }
 ```
 
 ### Implementation Highlights
 
-1. **Tag Management**
-   - Create custom tags with colors
-   - Apply tags to search results
-   - Filter results by tag
+1. **Tagging System**
+   - Custom tag creation with color coding
+   - Inclusion/exclusion tagging for PRISMA workflow
+   - Bulk tagging operations
 
-2. **Note Taking**
-   - Add notes to search results
-   - View notes chronologically
+2. **Note-Taking**
+   - Notes attached to specific results
+   - Timestamped audit trail
 
-3. **Client Implementation**
-   ```tsx
-   // Fetch tags and results
-   const tagsQuery = useQuery(getReviewTags, { sessionId });
-   const resultsQuery = useQuery(getResultsWithTags, {
-     sessionId,
-     tagId: selectedTagId,
-     untaggedOnly,
-     page: currentPage
-   });
-   
-   // Assign tag to result
-   const handleAssignTag = async (resultId, tagId) => {
-     try {
-       await assignTag({ resultId, tagId });
-       resultsQuery.refetch();
-     } catch (error) {
-       console.error("Failed to assign tag:", error);
-     }
-   };
-   ```
+3. **Filtering and Organization**
+   - Filter by tag, search term, or metadata
+   - Progress tracking for review workflow
 
-## 6. Reporting & Export
+## 6. Reporting
 
-The reporting feature generates statistics and exports results in various formats.
+The reporting feature generates PRISMA flow diagrams and exports search results.
 
 ### Configuration in main.wasp
 ```wasp
+route ReportingRoute { path: "/reporting", to: ReportingPage }
+page ReportingPage {
+  component: import { ReportingPage } from "@src/client/reporting/pages/ReportingPage",
+  authRequired: true
+}
+
 query getReportData {
   fn: import { getReportData } from "@src/server/reporting/queries.js",
-  entities: [SearchSession, ProcessedResult, ReviewTagAssignment, ReviewTag]
+  entities: [User, SearchSession, SearchQuery, RawSearchResult, ProcessedResult, ReviewTag, ReviewTagAssignment, DuplicateRelationship]
 }
 
 action exportResults {
-  fn: import { exportResults } from "@src/server/reporting/actions.js"
+  fn: import { exportResults } from "@src/server/reporting/actions.js",
+  entities: [User, SearchSession, ProcessedResult, RawSearchResult, SearchQuery, ReviewTagAssignment, ReviewTag, Note]
 }
 ```
 
 ### Implementation Highlights
 
 1. **PRISMA Flow Diagram**
-   - Visual representation of the review workflow
-   - Statistics for each stage of the process
+   - Visual representation of search and review workflow
+   - Automatic generation based on session data
 
-2. **Result Export**
-   - Export to CSV and JSON formats
-   - Filter exports by tag
-   - Include metadata and annotations
+2. **Export Formats**
+   - CSV and JSON export formats
+   - Configuration options for exported fields
 
-3. **Server Implementation**
-   ```typescript
-   // Generate report data
-   export const getReportData = async ({ sessionId }, context) => {
-     // Gather statistics
-     const rawResultsCount = await context.entities.RawSearchResult.count({...});
-     const processedResultsCount = await context.entities.ProcessedResult.count({...});
-     const taggedResultsCount = await context.entities.ProcessedResult.count({...});
-     
-     return {
-       summary: {
-         name: session.name,
-         queriesCount: session.searchQueries.length,
-         rawResultsCount,
-         processedResultsCount,
-         taggedResultsCount,
-         // ... other stats
-       },
-       tags: tagCounts,
-       fileTypes: fileTypeCounts
-     };
-   };
-   
-   // Export functionality
-   export const exportResults = async ({ sessionId, format, tagId }, context) => {
-     // Get filtered results
-     const results = await context.entities.ProcessedResult.findMany({...});
-     
-     // Format for export
-     const formattedResults = results.map(result => ({
-       title: result.title,
-       url: result.url,
-       tags: result.reviewTags.map(rt => rt.tag.name).join(', '),
-       // ... other fields
-     }));
-     
-     // Generate CSV or JSON
-     switch (format) {
-       case 'csv':
-         return { format: 'csv', content: generateCSV(formattedResults) };
-       case 'json':
-         return { format: 'json', content: JSON.stringify(formattedResults) };
-     }
-   };
-   ```
+3. **Statistics**
+   - Summary statistics for search results
+   - Review progress metrics
 
 ## Conclusion
 

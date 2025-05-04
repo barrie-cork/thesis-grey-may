@@ -1,416 +1,199 @@
+// Basic App Configuration
 app ThesisGrey {
-  title: "Thesis Grey",
+  title: "Thesis Grey", // Updated title
   wasp: { version: "^0.16.0" },
-  db: {
-    system: PostgreSQL,
-    prisma: {
-      clientPreviewFeatures: ["extendedWhereUnique"]
-    }
-  },
   auth: {
-    userEntity: User,
+    userEntity: User, // This User refers to the one in schema.prisma
     methods: {
-      usernameAndPassword: {}
-      // Phase 2: Add OAuth methods
-      // google: {},
+      usernameAndPassword: {
+        userSignupFields: import { userSignupFields } from "@src/server/auth/userSignupFields.ts"
+      }
     },
-    onAuthFailedRedirectTo: "/login"
-    // Phase 2: Add roles
-    // roles: {
-    //   researcher: {},
-    //   reviewer: {},
-    //   admin: {}
-    // }
-  },
-  dependencies: [
-    ("axios", "1.4.0")
-  ],
-  devDependencies: [
-    ("autoprefixer", "10.4.14"),
-    ("postcss", "8.4.27"),
-    ("tailwindcss", "3.3.3")
-  ]
+    onAuthFailedRedirectTo: "/login",
+    onBeforeSignup: import { onBeforeSignup } from "@src/server/auth/hooks.ts",
+    // TODO: Add email verification?
+  }
 }
 
-// Entities (partial example - would include all from the Prisma schema)
-entity User {=psl
-  id                 String            @id @default(uuid())
-  username           String            @unique
-  email              String?           @unique
-  password           String
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
-  searchSessions     SearchSession[]
-  reviewAssignments  ReviewAssignment[]
-  
-  // Phase 2 fields
-  role               String?
-  organizationId     String?
-  // Will add relations in Phase 2:
-  // organization      Organization?     @relation(fields: [organizationId], references: [id])
-  // teams             TeamMembership[]
-psl=}
+// --- Core Entities --- 
+// REMOVED - Entities are now defined in schema.prisma
 
-entity SearchSession {=psl
-  id                String            @id @default(uuid())
-  name              String
-  description       String?
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  userId            String
-  user              User              @relation(fields: [userId], references: [id])
-  searchQueries     SearchQuery[]
-  searchExecutions  SearchExecution[]
-  processedResults  ProcessedResult[]
-  reviewTags        ReviewTag[]
-  
-  // Phase 2 fields
-  teamId            String?
-  isTemplate        Boolean?          @default(false)
-  parentTemplateId  String?
-  // Will add relations in Phase 2:
-  // team              Team?             @relation(fields: [teamId], references: [id])
-  // parentTemplate    SearchSession?    @relation("SessionTemplate", fields: [parentTemplateId], references: [id])
-  // derivedSessions   SearchSession[]   @relation("SessionTemplate")
-psl=}
+// --- Basic Routes & Pages --- 
 
-entity SearchQuery {=psl
-  id                String            @id @default(uuid())
-  query             String
-  description       String?
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  sessionId         String
-  searchSession     SearchSession     @relation(fields: [sessionId], references: [id])
-  searchExecutions  SearchExecution[]
-  rawSearchResults  RawSearchResult[]
-  
-  // Phase 2 fields
-  queryType         String?           // e.g., "boolean", "natural", "pico"
-  structuredData    Json?             // For storing structured query data (PICO elements, etc.)
-psl=}
-
-entity SearchExecution {=psl
-  id                String            @id @default(uuid())
-  status            String
-  startTime         DateTime          @default(now())
-  endTime           DateTime?
-  resultCount       Int?
-  error             String?
-  queryId           String
-  sessionId         String
-  searchQuery       SearchQuery       @relation(fields: [queryId], references: [id])
-  searchSession     SearchSession     @relation(fields: [sessionId], references: [id])
-  
-  // Phase 2 fields
-  executedBy        String?           // User ID who executed the search
-  searchParams      Json?             // Additional search parameters
-psl=}
-
-entity RawSearchResult {=psl
-  id                String            @id @default(uuid())
-  queryId           String
-  title             String
-  url               String
-  snippet           String?
-  rank              Int
-  searchEngine      String
-  rawResponse       Json
-  searchQuery       SearchQuery       @relation(fields: [queryId], references: [id])
-  processedResult   ProcessedResult?
-  
-  // Phase 2 fields
-  fetchStatus       String?           // For tracking content fetching status
-  fullTextPath      String?           // Path to stored full text content
-psl=}
-
-entity ProcessedResult {=psl
-  id                String            @id @default(uuid())
-  rawResultId       String            @unique
-  sessionId         String
-  title             String
-  url               String
-  snippet           String?
-  metadata          Json
-  rawSearchResult   RawSearchResult   @relation(fields: [rawResultId], references: [id])
-  searchSession     SearchSession     @relation(fields: [sessionId], references: [id])
-  reviewTags        ReviewTagAssignment[]
-  notes             Note[]
-  duplicateOf       DuplicateRelationship[] @relation("primaryResult")
-  duplicates        DuplicateRelationship[] @relation("duplicateResult")
-  
-  // Phase 2 fields
-  citationData      Json?             // Structured citation data
-  qualityScore      Float?            // Automated quality assessment
-  evidenceLevel     String?           // Evidence hierarchy classification
-psl=}
-
-entity DuplicateRelationship {=psl
-  id                String            @id @default(uuid())
-  primaryResultId   String
-  duplicateResultId String
-  similarityScore   Float
-  duplicateType     String
-  primaryResult     ProcessedResult   @relation("primaryResult", fields: [primaryResultId], references: [id])
-  duplicateResult   ProcessedResult   @relation("duplicateResult", fields: [duplicateResultId], references: [id])
-  
-  // Phase 2 fields
-  verifiedBy        String?           // User ID who verified the duplicate
-  verifiedAt        DateTime?         // When the duplicate was verified
-psl=}
-
-entity ReviewTag {=psl
-  id                String            @id @default(uuid())
-  name              String
-  color             String
-  sessionId         String
-  searchSession     SearchSession     @relation(fields: [sessionId], references: [id])
-  assignments       ReviewTagAssignment[]
-  
-  // Phase 2 fields
-  tagType           String?           // e.g., "inclusion", "exclusion", "topic"
-  description       String?           // Tag description
-  isSystemTag       Boolean?          @default(false)
-psl=}
-
-entity ReviewTagAssignment {=psl
-  id                String            @id @default(uuid())
-  tagId             String
-  resultId          String
-  tag               ReviewTag         @relation(fields: [tagId], references: [id])
-  result            ProcessedResult   @relation(fields: [resultId], references: [id])
-  
-  // Phase 2 fields
-  assignedBy        String?           // User ID who assigned the tag
-  assignedAt        DateTime?         @default(now())
-  confidence        Float?            // Reviewer confidence in this assignment
-psl=}
-
-entity ReviewAssignment {=psl
-  id                String            @id @default(uuid())
-  userId            String
-  user              User              @relation(fields: [userId], references: [id])
-  
-  // Phase 2 fields
-  sessionId         String?           // Link to search session
-  assignedBy        String?           // User ID who created the assignment
-  startDate         DateTime?         // When review should start
-  dueDate           DateTime?         // When review should be completed
-  status            String?           // e.g., "pending", "in_progress", "completed"
-psl=}
-
-entity Note {=psl
-  id                String            @id @default(uuid())
-  content           String
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  resultId          String
-  result            ProcessedResult   @relation(fields: [resultId], references: [id])
-  
-  // Phase 2 fields
-  authorId          String?           // User who created the note
-  visibility        String?           @default("private") // "private", "team", "public"
-psl=}
-
-// Phase 2 entities (commented out for now)
-// entity Organization {=psl
-//   id                String            @id @default(uuid())
-//   name              String
-//   createdAt         DateTime          @default(now())
-//   updatedAt         DateTime          @updatedAt
-//   users             User[]
-//   teams             Team[]
-// psl=}
-//
-// entity Team {=psl
-//   id                String            @id @default(uuid())
-//   name              String
-//   organizationId    String
-//   organization      Organization      @relation(fields: [organizationId], references: [id])
-//   createdAt         DateTime          @default(now())
-//   updatedAt         DateTime          @updatedAt
-//   members           TeamMembership[]
-//   searchSessions    SearchSession[]
-// psl=}
-//
-// entity TeamMembership {=psl
-//   id                String            @id @default(uuid())
-//   userId            String
-//   teamId            String
-//   role              String            // "member", "admin"
-//   user              User              @relation(fields: [userId], references: [id])
-//   team              Team              @relation(fields: [teamId], references: [id])
-//   createdAt         DateTime          @default(now())
-//   updatedAt         DateTime          @updatedAt
-//   @@unique([userId, teamId])
-// psl=}
-
-// Routes
-route HomeRoute { path: "/", to: HomePage }
 route LoginRoute { path: "/login", to: LoginPage }
-route SignupRoute { path: "/signup", to: SignupPage }
-route ProfileRoute { path: "/profile", to: ProfilePage }
-route SearchStrategyRoute { path: "/search-strategy", to: SearchStrategyPage }
-route SearchExecutionRoute { path: "/search-execution/:sessionId", to: SearchExecutionPage }
-route ResultsManagerRoute { path: "/results/:sessionId", to: ResultsManagerPage }
-route ReviewRoute { path: "/review/:sessionId", to: ReviewPage }
-route ReportingRoute { path: "/reporting/:sessionId", to: ReportingPage }
-
-// Phase 2 routes (commented out for now)
-// route AdminRoute { path: "/admin", to: AdminPage }
-// route OrganizationsRoute { path: "/organizations", to: OrganizationsPage }
-// route TeamsRoute { path: "/teams", to: TeamsPage }
-
-// Pages
-page HomePage {
-  component: import { HomePage } from "@src/client/home/pages/HomePage"
-}
-
 page LoginPage {
   component: import { LoginPage } from "@src/client/auth/pages/LoginPage"
 }
 
+route SignupRoute { path: "/signup", to: SignupPage }
 page SignupPage {
   component: import { SignupPage } from "@src/client/auth/pages/SignupPage"
 }
 
+// REMOVED Simple Query & Action
+// query getTasks {
+//   fn: import { getTasks } from "@src/server/tasks/queries.ts",
+//   // Entities listed here are for context injection, NOT definition
+//   entities: [Task, User]
+// }
+//
+
+
+// --- Profile Page ---
+route ProfileRoute { path: "/profile", to: ProfilePage }
 page ProfilePage {
-  authRequired: true,
-  component: import { ProfilePage } from "@src/client/auth/pages/ProfilePage"
+  component: import { ProfilePage } from "@src/client/auth/pages/ProfilePage",
+  authRequired: true
 }
 
-page SearchStrategyPage {
-  authRequired: true,
-  component: import { SearchStrategyPage } from "@src/client/searchStrategy/pages/SearchStrategyPage"
-}
-
+// --- SERP Execution ---
+route SearchExecutionRoute { path: "/execute-search", to: SearchExecutionPage }
 page SearchExecutionPage {
-  authRequired: true,
-  component: import { SearchExecutionPage } from "@src/client/serpExecution/pages/SearchExecutionPage"
-}
-
-page ResultsManagerPage {
-  authRequired: true,
-  component: import { ResultsManagerPage } from "@src/client/resultsManager/pages/ResultsManagerPage"
-}
-
-page ReviewPage {
-  authRequired: true,
-  component: import { ReviewPage } from "@src/client/reviewResults/pages/ReviewPage"
-}
-
-page ReportingPage {
-  authRequired: true,
-  component: import { ReportingPage } from "@src/client/reporting/pages/ReportingPage"
-}
-
-// Queries
-query getSearchSessions {
-  fn: import { getSearchSessions } from "@src/server/searchStrategy/queries.js",
-  entities: [SearchSession]
-}
-
-query getSearchSession {
-  fn: import { getSearchSession } from "@src/server/searchStrategy/queries.js",
-  entities: [SearchSession, SearchQuery]
-}
-
-query getSearchQueries {
-  fn: import { getSearchQueries } from "@src/server/serpExecution/queries.js",
-  entities: [SearchQuery]
-}
-
-query getSearchExecutions {
-  fn: import { getSearchExecutions } from "@src/server/serpExecution/queries.js",
-  entities: [SearchExecution]
-}
-
-query getRawResults {
-  fn: import { getRawResults } from "@src/server/resultsManager/queries.js",
-  entities: [RawSearchResult]
-}
-
-query getProcessedResults {
-  fn: import { getProcessedResults } from "@src/server/resultsManager/queries.js",
-  entities: [ProcessedResult]
-}
-
-query getReviewTags {
-  fn: import { getReviewTags } from "@src/server/reviewResults/queries.js",
-  entities: [ReviewTag]
-}
-
-query getResultsWithTags {
-  fn: import { getResultsWithTags } from "@src/server/reviewResults/queries.js",
-  entities: [ProcessedResult, ReviewTagAssignment, ReviewTag, Note]
-}
-
-query getReportData {
-  fn: import { getReportData } from "@src/server/reporting/queries.js",
-  entities: [SearchSession, ProcessedResult, ReviewTagAssignment, ReviewTag]
-}
-
-query getUserProfile {
-  fn: import { getUserProfile } from "@src/server/auth/queries.js",
-  entities: [User]
-}
-
-query getUserSearchSessions {
-  fn: import { getUserSearchSessions } from "@src/server/auth/queries.js",
-  entities: [SearchSession]
-}
-
-// Actions
-action createSearchSession {
-  fn: import { createSearchSession } from "@src/server/searchStrategy/actions.js",
-  entities: [SearchSession]
-}
-
-action createSearchQuery {
-  fn: import { createSearchQuery } from "@src/server/searchStrategy/actions.js",
-  entities: [SearchQuery]
-}
-
-action updateSearchQuery {
-  fn: import { updateSearchQuery } from "@src/server/searchStrategy/actions.js",
-  entities: [SearchQuery]
+  component: import { SearchExecutionPage } from "@src/client/serpExecution/pages/SearchExecutionPage",
+  authRequired: true
 }
 
 action executeSearchQuery {
   fn: import { executeSearchQuery } from "@src/server/serpExecution/actions.js",
-  entities: [SearchQuery, SearchExecution, RawSearchResult]
+  entities: [User, SearchQuery, SearchSession, SearchExecution, RawSearchResult] // Updated entities
+}
+
+// --- Results Manager ---
+route ResultsManagerRoute { path: "/results", to: ResultsManagerPage }
+page ResultsManagerPage {
+  component: import { ResultsManagerPage } from "@src/client/resultsManager/pages/ResultsManagerPage",
+  authRequired: true
+}
+
+query getRawResults {
+  fn: import { getRawResults } from "@src/server/resultsManager/queries.js",
+  entities: [User, SearchSession, RawSearchResult, SearchQuery, ProcessedResult]
+}
+
+query getProcessedResults {
+  fn: import { getProcessedResults } from "@src/server/resultsManager/queries.js",
+  entities: [User, SearchSession, ProcessedResult, RawSearchResult, SearchQuery, ReviewTagAssignment, ReviewTag, Note]
 }
 
 action processSessionResults {
   fn: import { processSessionResults } from "@src/server/resultsManager/actions.js",
-  entities: [RawSearchResult, ProcessedResult, DuplicateRelationship]
+  entities: [User, SearchSession, RawSearchResult, ProcessedResult, DuplicateRelationship]
+}
+
+// --- Review Results ---
+route ReviewRoute { path: "/review", to: ReviewPage }
+page ReviewPage {
+  component: import { ReviewPage } from "@src/client/reviewResults/pages/ReviewPage",
+  authRequired: true
+}
+
+query getReviewTags {
+  fn: import { getReviewTags } from "@src/server/reviewResults/queries.js",
+  entities: [User, SearchSession, ReviewTag]
+}
+
+query getResultsWithTags {
+  fn: import { getResultsWithTags } from "@src/server/reviewResults/queries.js",
+  entities: [User, SearchSession, ProcessedResult, ReviewTagAssignment, ReviewTag, Note, RawSearchResult, SearchQuery]
 }
 
 action createReviewTag {
   fn: import { createReviewTag } from "@src/server/reviewResults/actions.js",
-  entities: [ReviewTag]
+  entities: [User, SearchSession, ReviewTag]
 }
 
 action assignTag {
   fn: import { assignTag } from "@src/server/reviewResults/actions.js",
-  entities: [ReviewTagAssignment]
+  entities: [User, ProcessedResult, SearchSession, ReviewTagAssignment, ReviewTag]
 }
 
 action createNote {
   fn: import { createNote } from "@src/server/reviewResults/actions.js",
-  entities: [Note]
+  entities: [User, ProcessedResult, SearchSession, Note]
+}
+
+// --- Reporting ---
+route ReportingRoute { path: "/reporting", to: ReportingPage }
+page ReportingPage {
+  component: import { ReportingPage } from "@src/client/reporting/pages/ReportingPage",
+  authRequired: true
+}
+
+query getReportData {
+  fn: import { getReportData } from "@src/server/reporting/queries.js",
+  entities: [User, SearchSession, SearchQuery, RawSearchResult, ProcessedResult, ReviewTag, ReviewTagAssignment, DuplicateRelationship]
 }
 
 action exportResults {
-  fn: import { exportResults } from "@src/server/reporting/actions.js"
+  fn: import { exportResults } from "@src/server/reporting/actions.js",
+  entities: [User, SearchSession, ProcessedResult, RawSearchResult, SearchQuery, ReviewTagAssignment, ReviewTag, Note]
 }
+
+// --- Auth Operations (beyond login/signup) ---
+query getUserProfile {
+  fn: import { getUserProfile } from "@src/server/auth/queries.js",
+  entities: [User] // Updated entities
+}
+
+query getUserSearchSessions {
+  fn: import { getUserSearchSessions } from "@src/server/auth/queries.js",
+  entities: [User, SearchSession, SearchQuery, ProcessedResult] // Updated entities
+}
+
+/* // Commented out - Phase 2 function
+query getOrganizationUsers {
+  fn: import { getOrganizationUsers } from "@src/server/auth/queries.js",
+  entities: [User] // Placeholder entities
+}
+*/
 
 action updateUserProfile {
   fn: import { updateUserProfile } from "@src/server/auth/actions.js",
-  entities: [User]
+  entities: [User] // Updated entities
 }
 
 action changePassword {
   fn: import { changePassword } from "@src/server/auth/actions.js",
-  entities: [User]
+  entities: [User] // Updated entities
 }
+
+/* // Commented out - Phase 2 function
+action assignUserRole {
+  fn: import { assignUserRole } from "@src/server/auth/actions.js",
+  entities: [User] // Placeholder entities
+}
+*/
+
+// --- Search Strategy Feature ---
+route SearchStrategyRoute { path: "/", to: SearchStrategyPage }
+page SearchStrategyPage {
+  component: import { SearchStrategyPage } from "@src/client/searchStrategy/pages/SearchStrategyPage",
+  authRequired: true
+}
+
+query getSearchSessions {
+  fn: import { getSearchSessions } from "@src/server/searchStrategy/queries.js",
+  entities: [User, SearchSession, SearchQuery, ProcessedResult]
+}
+
+action createSearchSession {
+  fn: import { createSearchSession } from "@src/server/searchStrategy/actions.js",
+  entities: [User, SearchSession]
+}
+
+query getSearchSession {
+  fn: import { getSearchSession } from "@src/server/searchStrategy/queries.js",
+  entities: [User, SearchSession, SearchQuery, ProcessedResult]
+}
+
+action createSearchQuery {
+  fn: import { createSearchQuery } from "@src/server/searchStrategy/actions.js",
+  entities: [User, SearchSession, SearchQuery]
+}
+
+action updateSearchQuery {
+  fn: import { updateSearchQuery } from "@src/server/searchStrategy/actions.js",
+  entities: [User, SearchSession, SearchQuery]
+}
+
+// (e.g., routes, pages, queries, actions for resultsManager, etc.)

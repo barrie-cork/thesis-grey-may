@@ -117,16 +117,51 @@ graph TB
 The Domain Layer contains the core business entities, interfaces, and business rules that define the application's domain model.
 
 #### Entities
+The following entities are defined in schema.prisma:
+
 - **User**: Represents a user of the system with authentication credentials
+  - Properties: id, username, email, createdAt, updatedAt
+  - Relationships: searchSessions, reviewAssignments
+
 - **SearchSession**: Represents a search session containing multiple search queries
+  - Properties: id, name, description, createdAt, updatedAt, userId
+  - Relationships: user, searchQueries, searchExecutions, processedResults, reviewTags
+
 - **SearchQuery**: Represents a specific search query within a session
+  - Properties: id, query, description, createdAt, updatedAt, sessionId
+  - Relationships: searchSession, searchExecutions, rawSearchResults
+
 - **SearchExecution**: Represents the execution of a search query
+  - Properties: id, status, startTime, endTime, resultCount, error, queryId, sessionId
+  - Relationships: searchQuery, searchSession
+
 - **RawSearchResult**: Represents a raw search result from an external search engine
+  - Properties: id, queryId, title, url, snippet, rank, searchEngine, rawResponse
+  - Relationships: searchQuery, processedResult
+
 - **ProcessedResult**: Represents a processed search result with normalized data
-- **ReviewTag**: Represents a tag that can be applied to search results
-- **ReviewTagAssignment**: Represents the assignment of a tag to a search result
-- **Note**: Represents a note attached to a search result
+  - Properties: id, rawResultId, sessionId, title, url, snippet, metadata
+  - Relationships: rawSearchResult, searchSession, reviewTags, notes, duplicateOf, duplicates
+
 - **DuplicateRelationship**: Represents a relationship between duplicate search results
+  - Properties: id, primaryResultId, duplicateResultId, similarityScore, duplicateType
+  - Relationships: primaryResult, duplicateResult
+
+- **ReviewTag**: Represents a tag that can be applied to search results
+  - Properties: id, name, color, sessionId
+  - Relationships: searchSession, assignments
+
+- **ReviewTagAssignment**: Represents the assignment of a tag to a search result
+  - Properties: id, tagId, resultId, assignedAt
+  - Relationships: tag, result
+
+- **ReviewAssignment**: Represents a review assignment for a user
+  - Properties: id, userId
+  - Relationships: user
+
+- **Note**: Represents a note attached to a search result
+  - Properties: id, content, createdAt, updatedAt, resultId
+  - Relationships: result
 
 #### Interfaces
 - **SearchProvider**: Defines the contract for search providers
@@ -182,6 +217,46 @@ The Application Layer implements the use cases of the application, orchestrating
 - **ReviewService**: Manages the review process
 - **ReportingService**: Generates reports and exports data
 
+#### Implementation with Wasp Operations
+The application layer is implemented using Wasp's operations system:
+
+```typescript
+// Server-side query implementation example
+import { HttpError } from 'wasp/server';
+import { type GetSearchSessions } from 'wasp/server/operations';
+
+export const getSearchSessions = (async (args, context) => {
+  if (!context.user) {
+    throw new HttpError(401, 'Not authorized');
+  }
+
+  try {
+    const sessions = await context.entities.SearchSession.findMany({
+      where: { userId: context.user.id },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        createdAt: true,
+        updatedAt: true,
+        _count: {
+          select: {
+            searchQueries: true,
+            processedResults: true
+          }
+        }
+      }
+    });
+
+    return sessions;
+  } catch (error) {
+    console.error('Error fetching search sessions:', error);
+    throw new HttpError(500, 'Failed to fetch search sessions');
+  }
+}) satisfies GetSearchSessions;
+```
+
 #### State Management
 - Server-side state with client-side caching using React Query (provided by Wasp)
 - Optimistic UI updates for a responsive user experience
@@ -195,111 +270,115 @@ The Infrastructure Layer provides technical capabilities to support the applicat
 #### Persistence
 - **PostgreSQL**: Relational database for storing application data
 - **Prisma ORM**: Object-Relational Mapping for database access
+  - All entities defined in schema.prisma
+  - Accessed via context.entities in Wasp operations
+
+#### Authentication
+- **Wasp Authentication System**: Uses Wasp v0.16.0's built-in auth system
+  - JWT-based token management
+  - User registration and login flows
+  - Protected routes with authRequired property
+  - Custom signup fields with userSignupFields
+
+```wasp
+auth: {
+  userEntity: User,
+  methods: {
+    usernameAndPassword: {
+      userSignupFields: import { userSignupFields } from "@src/server/auth/userSignupFields.ts"
+    }
+  },
+  onAuthFailedRedirectTo: "/login",
+  onBeforeSignup: import { onBeforeSignup } from "@src/server/auth/hooks.ts",
+}
+```
 
 #### Communication
 - **RESTful API endpoints**: Wasp actions and queries for client-server communication
+- **TypeScript Type Safety**: End-to-end type safety with auto-generated types
 
-### Presentation Layer
-The Presentation Layer handles the user interface and user interactions.
+## Presentation Layer
+The Presentation Layer is responsible for the user interface and user interactions.
 
-#### UI Components
-- React components organized by feature (auth, searchStrategy, serpExecution, etc.)
-- Reusable UI components in the shared directory
+### Components
+- **Auth Components**: Login and registration forms
+- **SearchStrategy Components**: Search session and query management
+- **ResultsManager Components**: Results viewing and processing
+- **ReviewResults Components**: Review interface with tagging
+- **Reporting Components**: Report generation and export
 
-#### Routing
-- React Router (provided by Wasp) for client-side routing
+### Routing
+- Implemented with Wasp's built-in routing system using React Router
 
-#### Styling
-- TailwindCSS for utility-first styling
+```wasp
+route LoginRoute { path: "/login", to: LoginPage }
+page LoginPage {
+  component: import { LoginPage } from "@src/client/auth/pages/LoginPage"
+}
+
+route ProfileRoute { path: "/profile", to: ProfilePage }
+page ProfilePage {
+  component: import { ProfilePage } from "@src/client/auth/pages/ProfilePage",
+  authRequired: true
+}
+```
+
+### Data Fetching
+- Implemented with Wasp's React Query integration
+- Type-safe client-server communication
+
+```tsx
+import { useQuery } from 'wasp/client/operations';
+
+function SearchSessionsList() {
+  const { data: sessions, isLoading, error } = useQuery(getSearchSessions);
+  
+  if (isLoading) return <p>Loading...</p>;
+  if (error) return <p>Error: {error.message}</p>;
+  
+  return (
+    <ul>
+      {sessions.map(session => (
+        <li key={session.id}>{session.name}</li>
+      ))}
+    </ul>
+  );
+}
+```
 
 ## Cross-cutting Concerns
 
 ### Error Handling
-- **Centralized Error Handling**: Custom error types and consistent error responses
-- **Error Boundaries**: React error boundaries to prevent UI crashes
-- **Error Logging**: Structured error logging for debugging
+- Client-side: React error boundaries and try/catch blocks
+- Server-side: Wasp's HttpError and global error handlers
 
-### Logging
-- **Structured Logging**: JSON-formatted logs with severity levels
-- **Contextual Information**: Request IDs, user IDs, and other contextual information
-- **Log Levels**: DEBUG, INFO, WARN, ERROR, and FATAL
+```typescript
+import { HttpError } from 'wasp/server';
+
+if (!session) {
+  throw new HttpError(404, 'Session not found');
+}
+```
 
 ### Security
-- **JWT-based Authentication**: Secure authentication using JSON Web Tokens
-- **Input Validation**: Validation of all user inputs to prevent injection attacks
-- **CSRF Protection**: Protection against Cross-Site Request Forgery attacks
+- **Authentication**: JWT-based authentication with Wasp's auth system
+- **Authorization**: Access control in operations using context.user
+- **Input Validation**: Validation in operations and components
+- **HTTPS**: Secure communications
 
-### State Synchronization
-- **Optimistic UI Updates**: Update the UI immediately, then validate with the server
-- **Conflict Resolution**: Resolve conflicts between client and server state
-- **Loading States**: Clear indication of loading states for better user experience
+### Logging
+- Server-side logging for operations and errors
+- Client-side error tracking
 
 ### Configuration
-- **Environment-based Configuration**: Different configurations for development, testing, and production
-- **Sensible Defaults**: Default configuration values for all settings
-- **Secret Management**: Secure management of sensitive configuration values
+- Environment variables for API keys and database connection
+- Wasp-specific configuration in main.wasp
 
-## Integration Patterns
+## Deployment
 
-### External Service Integration
-- **Adapter Pattern**: Adapters for external services to provide a consistent interface
-- **Resilience**: Retry mechanisms and circuit breakers for external service calls
-- **Caching**: Caching of external service responses to reduce API calls
+The application can be deployed using Wasp's built-in deployment capabilities:
 
-### Inter-service Communication
-- **Direct Method Calls**: Direct method calls within the monolith for efficiency
-- **Service Interfaces**: Well-defined interfaces between services for loose coupling
-
-### Event Handling
-- **Simple Pub/Sub**: A simple publish-subscribe mechanism for internal events
-- **Event Types**: Well-defined event types for type safety
-
-### State Persistence
-- **Repository Pattern**: Repositories for data access abstraction
-- **Unit of Work**: Transactions for maintaining data consistency
-
-## Component Interactions
-The application follows a unidirectional data flow:
-
-1. **User Interaction**: The user interacts with the UI components
-2. **Route Handling**: React Router routes the request to the appropriate page component
-3. **Action/Query Dispatch**: The page component dispatches a Wasp action or query
-4. **Service Orchestration**: The service orchestrates the use case, calling domain entities and interfaces
-5. **Data Access**: The repositories access the database via Prisma ORM
-6. **Response Flow**: The response flows back through the layers to the UI
-
-## Interface Contracts
-The application defines clear interface contracts between components:
-
-### SearchProvider Interface
-```typescript
-interface SearchProvider {
-  executeSearch(query: string, options: SearchOptions): Promise<RawSearchResult[]>;
-}
-```
-
-### ResultProcessor Interface
-```typescript
-interface ResultProcessor {
-  processResult(rawResult: RawSearchResult): Promise<ProcessedResult>;
-  detectDuplicates(results: ProcessedResult[]): Promise<DuplicateRelationship[]>;
-}
-```
-
-### ReviewManager Interface
-```typescript
-interface ReviewManager {
-  createTag(name: string, color: string, sessionId: string): Promise<ReviewTag>;
-  assignTag(tagId: string, resultId: string): Promise<ReviewTagAssignment>;
-  createNote(content: string, resultId: string): Promise<Note>;
-}
-```
-
-### ReportGenerator Interface
-```typescript
-interface ReportGenerator {
-  generatePrismaFlow(sessionId: string): Promise<PrismaFlowData>;
-  generateStatistics(sessionId: string): Promise<SessionStatistics>;
-  exportResults(sessionId: string, format: 'csv' | 'json'): Promise<string>;
-}
-```
+- Local development: `wasp start`
+- Production build: `wasp build`
+- Fly.io deployment: `wasp deploy fly`
+- Docker containerization: `wasp build` generates Dockerfile

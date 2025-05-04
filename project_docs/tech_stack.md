@@ -36,17 +36,17 @@ Thesis Grey follows a Vertical Slice Architecture (VSA) while leveraging Wasp's 
 ### Core Layers
 
 #### Domain Layer
-- Business entities defined through Prisma schema
+- Business entities defined exclusively in schema.prisma
 - Domain logic in feature-specific directories
 
 #### Application Layer
 - Use cases implemented via Wasp actions and queries
-- Authentication using Wasp's built-in auth system
+- Authentication using Wasp's built-in auth system with userSignupFields
 - Error handling using Wasp's HttpError
 
 #### Infrastructure Layer
 Minimized through the use of Wasp's capabilities:
-- **Authentication**: Wasp's built-in auth system
+- **Authentication**: Wasp's built-in auth system with username/password
 - **Database Access**: Wasp's Prisma integration
 - **API Layer**: Implemented via Wasp actions and queries
 - **External Services**: Custom adapters for search APIs
@@ -77,25 +77,28 @@ Minimized through the use of Wasp's capabilities:
 
 ```
 thesis-grey/
-├── main.wasp                 # Wasp configuration (routes, entities, auth, queries, actions)
-├── schema.prisma             # Database schema
+├── main.wasp                 # Wasp configuration (routes, pages, auth, queries, actions)
+├── schema.prisma             # Database schema and entity definitions
 ├── src/
 │   ├── client/               # Client-side code
 │   │   ├── auth/             # Authentication UI components
+│   │   │   └── pages/        # Auth page components (login, signup, profile)
 │   │   ├── searchStrategy/   # Search strategy builder components
 │   │   ├── serpExecution/    # Search execution components
 │   │   ├── resultsManager/   # Results processing components
 │   │   ├── reviewResults/    # Review interface components
-│   │   ├── reporting/        # Reporting components
-│   │   └── pages/            # Main pages
+│   │   └── reporting/        # Reporting components
 │   ├── server/               # Server-side code
 │   │   ├── auth/             # Authentication logic
+│   │   │   ├── actions.js    # Auth-related actions
+│   │   │   ├── queries.js    # Auth-related queries
+│   │   │   ├── hooks.ts      # Auth hooks like onBeforeSignup
+│   │   │   └── userSignupFields.ts # User field mapping for signup
 │   │   ├── searchStrategy/   # Search strategy logic
 │   │   ├── serpExecution/    # Search execution logic
 │   │   ├── resultsManager/   # Results processing logic
 │   │   ├── reviewResults/    # Review logic
-│   │   ├── reporting/        # Reporting logic
-│   │   └── shared/           # Shared server utilities
+│   │   └── reporting/        # Reporting logic
 │   └── shared/               # Code shared between client and server
 ├── public/                   # Public assets
 └── project_docs/             # Project documentation
@@ -104,8 +107,9 @@ thesis-grey/
 ## Feature-Specific Implementation
 
 ### Authentication
-- Uses Wasp's built-in user authentication system
+- Uses Wasp v0.16.0's built-in user authentication system
 - Username/password authentication
+- User signup field customization with `userSignupFields`
 - JWT-based session management
 - Protected routes using Wasp's `authRequired` property
 
@@ -143,11 +147,31 @@ The Thesis Grey implementation leverages several key advantages of the Wasp fram
 2. **Type Safety**: Auto-generated TypeScript types from database schema
 3. **Integrated Auth**: Built-in authentication system that handles sessions, tokens, and user management
 4. **Unified Codebase**: Single repository with clear separation of concerns
-5. **Operations Pattern**: Standardized approach to client-server communication
+5. **Operations Pattern**: Standardized approach to client-server communication via actions and queries
+
+## TypeScript Integration
+
+Wasp v0.16.0 provides strong TypeScript support that enhances developer experience:
+
+```typescript
+// Entity types auto-generated from schema.prisma
+import type { User, SearchSession } from 'wasp/entities';
+
+// Operation types auto-generated from main.wasp
+import { type GetSearchSessions } from 'wasp/server/operations';
+
+// Client operations hooks auto-generated from main.wasp
+import { useQuery, getSearchSessions } from 'wasp/client/operations';
+
+// Implementation using the satisfies operator with inferred types
+export const getSearchSessions = (async (args, context) => {
+  // Implementation...
+}) satisfies GetSearchSessions;
+```
 
 ## Extension Points
 
-The architecture provides clear extension points for Phase 2 enhancements:
+The architecture provides clear extension points for future enhancements:
 
 1. **Advanced Search APIs**: Additional search engine integrations
 2. **Collaborative Review**: Multi-user annotation and review

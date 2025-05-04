@@ -1,6 +1,6 @@
 ---
-description:
-globs:
+description: 
+globs: 
 alwaysApply: false
 ---
 # 4. Thesis Grey Authentication
@@ -9,7 +9,7 @@ This document details how authentication is implemented and used within the Thes
 
 ## Authentication Setup in Thesis Grey
 
-Thesis Grey uses Wasp's built-in username/password authentication system:
+Thesis Grey uses Wasp v0.16.0's built-in username/password authentication system:
 
 ```wasp
 // In main.wasp
@@ -18,9 +18,12 @@ app ThesisGrey {
   auth: {
     userEntity: User,
     methods: {
-      usernameAndPassword: {}
+      usernameAndPassword: {
+        userSignupFields: import { userSignupFields } from "@src/server/auth/userSignupFields.ts"
+      }
     },
-    onAuthFailedRedirectTo: "/login"
+    onAuthFailedRedirectTo: "/login",
+    onBeforeSignup: import { onBeforeSignup } from "@src/server/auth/hooks.ts"
   }
 }
 ```
@@ -29,8 +32,43 @@ The Thesis Grey authentication system consists of:
 
 - The `User` entity that stores user information
 - Login and signup pages with Wasp's authentication forms
+- Custom signup fields handling via `userSignupFields`
+- Validation via `onBeforeSignup` hook
 - Protected routes through the `authRequired: true` property
 - Authorization checks in server operations
+
+## Authentication Implementation
+
+### userSignupFields Implementation
+
+```typescript
+// src/server/auth/userSignupFields.ts
+import { UserSignupFields } from 'wasp/auth/providers/types';
+
+export const userSignupFields: UserSignupFields = {
+  username: async (data: any) => {
+    // Ensure username exists and is valid
+    if (!data.username) {
+      throw new Error('Username is required');
+    }
+    return data.username;
+  }
+};
+```
+
+### onBeforeSignup Hook
+
+```typescript
+// src/server/auth/hooks.ts
+import { OnBeforeSignupHook } from 'wasp/server/auth';
+
+export const onBeforeSignup: OnBeforeSignupHook = async ({ providerId, req, prisma }) => {
+  // In Wasp v0.16.0, this hook returns void and is only used for validation or preliminary checks
+  console.log('Signup request received for provider ID:', providerId);
+  
+  // No return value needed (void)
+};
+```
 
 ## Authentication Pages
 
@@ -38,21 +76,26 @@ The Thesis Grey authentication system consists of:
 
 ```tsx
 // src/client/auth/pages/LoginPage.tsx
+import React from 'react';
 import { LoginForm } from 'wasp/client/auth';
+import { Link } from 'react-router-dom';
 
 export function LoginPage() {
   return (
-    <div className="flex min-h-screen flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">
-          Log in to Thesis Grey
-        </h2>
-      </div>
-
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white px-4 py-8 shadow sm:rounded-lg sm:px-10">
-          <LoginForm/>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            Sign in to your account
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Or{' '}
+            <Link to="/signup" className="font-medium text-blue-600 hover:text-blue-500">
+              create a new account
+            </Link>
+          </p>
         </div>
+        <LoginForm />
       </div>
     </div>
   );
@@ -63,20 +106,36 @@ export function LoginPage() {
 
 ```tsx
 // src/client/auth/pages/SignupPage.tsx
+import React from 'react';
 import { SignupForm } from 'wasp/client/auth';
+import { Link } from 'react-router-dom';
 
 export function SignupPage() {
   return (
-    <div className="flex min-h-screen flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">
-          Create an account
-        </h2>
-      </div>
-
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white px-4 py-8 shadow sm:rounded-lg sm:px-10">
-          <SignupForm/>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            Create a new account
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Or{' '}
+            <Link to="/login" className="font-medium text-blue-600 hover:text-blue-500">
+              sign in to your existing account
+            </Link>
+          </p>
+        </div>
+        <div className="mt-8">
+          <SignupForm additionalFields={[
+            {
+              name: 'username',
+              type: 'input',
+              label: 'Username',
+              validations: {
+                required: 'Username is required'
+              }
+            }
+          ]} />
         </div>
       </div>
     </div>
@@ -109,7 +168,8 @@ Thesis Grey uses the `useAuth` hook to access user information in React componen
 
 ```tsx
 // Example component that uses authentication data
-import { useAuth } from 'wasp/client/auth';
+import React from 'react';
+import { useAuth, logout } from 'wasp/client/auth';
 
 export function ProfilePage() {
   const { data: user, isLoading, error } = useAuth();
@@ -118,86 +178,64 @@ export function ProfilePage() {
   if (error || !user) return <div>Error: {error?.message}</div>;
   
   return (
-    <div>
-      <h1>Profile</h1>
-      <p>Username: {user.username}</p>
-      {/* Other profile information */}
-    </div>
-  );
-}
-```
-
-## Navigation & Auth-Aware Components
-
-Thesis Grey implements auth-aware navigation to show different options based on authentication status:
-
-```tsx
-// src/client/components/NavBar.tsx
-import { Link } from 'react-router-dom';
-import { useAuth, logout } from 'wasp/client/auth';
-
-export function NavBar() {
-  const { data: user } = useAuth();
-  
-  return (
-    <nav className="bg-gray-800 text-white p-4">
-      <div className="container mx-auto flex justify-between items-center">
-        <Link to="/" className="text-xl font-bold">Thesis Grey</Link>
-        
-        <div className="flex space-x-4">
-          {user ? (
-            <>
-              <Link to="/search-strategy">Search Sessions</Link>
-              <Link to="/profile">Profile</Link>
-              <button 
-                onClick={logout}
-                className="bg-red-600 px-3 py-1 rounded hover:bg-red-700"
-              >
-                Logout
-              </button>
-            </>
-          ) : (
-            <>
-              <Link to="/login">Login</Link>
-              <Link to="/signup">Sign Up</Link>
-            </>
-          )}
-        </div>
+    <div className="max-w-md mx-auto mt-10 p-6 bg-white rounded shadow">
+      <h1 className="text-2xl font-bold mb-6">Your Profile</h1>
+      <div className="mb-4">
+        <p className="text-gray-700 mb-2"><strong>Username:</strong> {user.username}</p>
+        <p className="text-gray-700 mb-2"><strong>Email:</strong> {user.email}</p>
       </div>
-    </nav>
+      <button 
+        onClick={logout}
+        className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+      >
+        Logout
+      </button>
+    </div>
   );
 }
 ```
 
 ## Server-Side Authorization
 
-All Thesis Grey operations incorporate consistent authorization checks:
+All Thesis Grey operations incorporate consistent authorization checks using the `satisfies` operator for type safety:
 
 ```typescript
 // Example authorization pattern in operations
-export const getSearchSession = async ({ id }, context) => {
+import { HttpError } from 'wasp/server';
+import { type GetSearchSession } from 'wasp/server/operations';
+
+export const getSearchSession = (async (args, context) => {
   // 1. Check if user is authenticated
   if (!context.user) {
     throw new HttpError(401, "Unauthorized");
   }
   
-  // 2. Fetch the requested resource
-  const session = await context.entities.SearchSession.findUnique({
-    where: { id }
-  });
-  
-  // 3. Verify resource exists and user has access
-  if (!session) {
-    throw new HttpError(404, "Session not found");
+  try {
+    // 2. Fetch the requested resource
+    const session = await context.entities.SearchSession.findFirst({
+      where: {
+        id: args.id,
+        userId: context.user.id
+      }
+    });
+    
+    // 3. Verify resource exists
+    if (!session) {
+      throw new HttpError(404, "Search session not found or access denied");
+    }
+    
+    // 4. Proceed with operation
+    return session;
+  } catch (error) {
+    // Re-throw HttpError instances
+    if (error instanceof HttpError) {
+      throw error;
+    }
+    
+    console.error('Error fetching search session:', error);
+    throw new HttpError(500, 'Failed to fetch search session');
   }
-  
-  if (session.userId !== context.user.id) {
-    throw new HttpError(403, "You don't have access to this session");
-  }
-  
-  // 4. Proceed with operation
-  return session;
-};
+}) satisfies GetSearchSession;
 ```
 
 ## Authentication Best Practices in Thesis Grey
@@ -207,5 +245,8 @@ export const getSearchSession = async ({ id }, context) => {
 3. **User-Specific Data**: Always filter queries by the current user's ID to ensure data isolation
 4. **Clean Error Messages**: Provide clear but not overly detailed error messages for security
 5. **Handle Loading States**: Always handle loading and error states in components using authentication data
+6. **Type Safety**: Use the `satisfies` operator to ensure proper typing of server operations
+7. **Proper Field Handling**: Use `userSignupFields` to process and validate custom fields during signup
+8. **Validation Hooks**: Use `onBeforeSignup` for validation or preliminary checks before user creation
 
 These patterns ensure that Thesis Grey maintains a secure authentication model throughout the application.

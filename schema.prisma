@@ -3,6 +3,7 @@
 
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["extendedWhereUnique"]
 }
 
 datasource db {
@@ -10,16 +11,25 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ==============================================
+// User Model (Auth models are added by Wasp)
+// ==============================================
+
 model User {
   id                 String            @id @default(uuid())
   username           String            @unique
   email              String?           @unique
-  password           String
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
   searchSessions     SearchSession[]
-  reviewAssignments  ReviewAssignment[]
+  reviewAssignments  ReviewAssignment[] // Added by user schema
+
+  // Add any other custom fields here
 }
+
+// ==============================================
+// Thesis Grey Application Models
+// ==============================================
 
 model SearchSession {
   id                String            @id @default(uuid())
@@ -49,44 +59,49 @@ model SearchQuery {
 
 model SearchExecution {
   id                String            @id @default(uuid())
-  status            String
+  status            String            // Consider using an Enum: "running", "completed", "failed", "pending"
   startTime         DateTime          @default(now())
   endTime           DateTime?
   resultCount       Int?
   error             String?
   queryId           String
-  sessionId         String
+  sessionId         String            // Added for easier access? Verify necessity. Usually via queryId -> sessionId
   searchQuery       SearchQuery       @relation(fields: [queryId], references: [id])
-  searchSession     SearchSession     @relation(fields: [sessionId], references: [id])
+  searchSession     SearchSession     @relation(fields: [sessionId], references: [id]) // Direct relation to session
 }
 
 model RawSearchResult {
   id                String            @id @default(uuid())
   queryId           String
+  searchExecutionId String?           // Optional: Link to the specific execution that found this result
   title             String
   url               String
   snippet           String?
   rank              Int
   searchEngine      String
-  rawResponse       Json
+  rawResponse       Json              // Ensure database supports JSON type
   searchQuery       SearchQuery       @relation(fields: [queryId], references: [id])
-  processedResult   ProcessedResult?
+  processedResult   ProcessedResult?  // One-to-one relation to ProcessedResult
+  // Optional relation to execution
+  // searchExecution SearchExecution? @relation(fields: [searchExecutionId], references: [id])
 }
 
 model ProcessedResult {
   id                String            @id @default(uuid())
-  rawResultId       String            @unique
+  rawResultId       String            @unique // Ensures one processed result per raw result
   sessionId         String
   title             String
-  url               String
+  url               String            // Consider adding @@index([url]) for duplicate checking performance
   snippet           String?
-  metadata          Json
+  metadata          Json              // For extracted data like domain, filetype, etc.
   rawSearchResult   RawSearchResult   @relation(fields: [rawResultId], references: [id])
   searchSession     SearchSession     @relation(fields: [sessionId], references: [id])
   reviewTags        ReviewTagAssignment[]
   notes             Note[]
   duplicateOf       DuplicateRelationship[] @relation("primaryResult")
   duplicates        DuplicateRelationship[] @relation("duplicateResult")
+
+  @@index([sessionId]) // Index for faster lookup by session
 }
 
 model DuplicateRelationship {
@@ -94,9 +109,13 @@ model DuplicateRelationship {
   primaryResultId   String
   duplicateResultId String
   similarityScore   Float
-  duplicateType     String
+  duplicateType     String            // E.g., "url_match", "title_match"
   primaryResult     ProcessedResult   @relation("primaryResult", fields: [primaryResultId], references: [id])
   duplicateResult   ProcessedResult   @relation("duplicateResult", fields: [duplicateResultId], references: [id])
+
+  @@unique([primaryResultId, duplicateResultId]) // Prevent duplicate relationship entries
+  @@index([primaryResultId])
+  @@index([duplicateResultId])
 }
 
 model ReviewTag {
@@ -106,20 +125,35 @@ model ReviewTag {
   sessionId         String
   searchSession     SearchSession     @relation(fields: [sessionId], references: [id])
   assignments       ReviewTagAssignment[]
+
+  @@unique([sessionId, name]) // Tags should be unique within a session
 }
 
+// Explicit many-to-many join table for tags and results
 model ReviewTagAssignment {
   id                String            @id @default(uuid())
   tagId             String
   resultId          String
   tag               ReviewTag         @relation(fields: [tagId], references: [id])
   result            ProcessedResult   @relation(fields: [resultId], references: [id])
+
+  assignedAt        DateTime          @default(now()) // Optional: track when tag was assigned
+
+  @@unique([tagId, resultId]) // Prevent assigning the same tag multiple times
+  @@index([tagId])
+  @@index([resultId])
 }
 
 model ReviewAssignment {
   id                String            @id @default(uuid())
   userId            String
   user              User              @relation(fields: [userId], references: [id])
+  // Missing fields like sessionId, stage, etc. Add as needed.
+  // For example:
+  // sessionId         String
+  // searchSession     SearchSession     @relation(fields: [sessionId], references: [id])
+  // reviewStage       String           // E.g., "title_abstract_screening", "full_text_review"
+  // assignedAt        DateTime         @default(now())
 }
 
 model Note {
@@ -128,5 +162,10 @@ model Note {
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
   resultId          String
+  userId            String?           // Optional: track who wrote the note
   result            ProcessedResult   @relation(fields: [resultId], references: [id])
+  // Optional relation to user
+  // user              User?             @relation(fields: [userId], references: [id])
+
+  @@index([resultId])
 } 

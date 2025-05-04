@@ -7,7 +7,8 @@
 - REQ-FR-AUTH-2: System must provide user login functionality
 - REQ-FR-AUTH-3: System must support user profile management
 - REQ-FR-AUTH-4: System must implement JWT-based authentication
-- REQ-FR-AUTH-5: System must implement basic role-based permissions (Researcher role)
+- REQ-FR-AUTH-5: System must handle custom user fields during registration with userSignupFields
+- REQ-FR-AUTH-6: System must validate user input with appropriate hooks (onBeforeSignup)
 
 ### Search Strategy Builder
 - REQ-FR-SSB-1: System must allow users to create and manage search sessions
@@ -16,7 +17,6 @@
 - REQ-FR-SSB-4: System must support file type filtering
 - REQ-FR-SSB-5: System must provide simple query generation
 - REQ-FR-SSB-6: System must offer query preview functionality
-
 
 ### SERP Execution
 - REQ-FR-SERP-1: System must integrate with Google Search API via Serper
@@ -51,15 +51,29 @@
 
 ### Database
 - REQ-TR-DB-1: System must use PostgreSQL as the database system
-- REQ-TR-DB-2: System must implement the full database schema as specified in the PRD
+- REQ-TR-DB-2: System must define all entities in schema.prisma
 - REQ-TR-DB-3: System must use Prisma ORM for database operations
+- REQ-TR-DB-4: System must implement appropriate indexes for performance
 
 ### Architecture
 - REQ-TR-ARCH-1: System must follow Vertical Slice Architecture (VSA) principles
-- REQ-TR-ARCH-2: System must be built using the Wasp full-stack framework
+- REQ-TR-ARCH-2: System must be built using the Wasp full-stack framework v0.16.0
 - REQ-TR-ARCH-3: System must use React for the frontend
 - REQ-TR-ARCH-4: System must use Node.js and Express for the backend
 - REQ-TR-ARCH-5: System must be implemented with TypeScript for type safety
+- REQ-TR-ARCH-6: System must use the "satisfies" operator for type inference
+
+### Security
+- REQ-TR-SEC-1: System must implement authentication via Wasp's built-in auth system
+- REQ-TR-SEC-2: System must validate user input on both client and server sides
+- REQ-TR-SEC-3: System must use HTTPS for all communications
+- REQ-TR-SEC-4: System must implement proper authorization checks for all operations
+
+### Error Handling
+- REQ-TR-ERR-1: System must use Wasp's HttpError for error handling
+- REQ-TR-ERR-2: System must provide appropriate error messages to users
+- REQ-TR-ERR-3: System must log errors for debugging purposes
+- REQ-TR-ERR-4: System must handle network failures gracefully
 
 ### Deployment
 - REQ-TR-DEP-1: System must support Docker containerization for production

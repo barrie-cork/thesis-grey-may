@@ -1,4 +1,4 @@
-import HttpError from 'wasp/core/HttpError.js';
+import { HttpError } from 'wasp/server';
 
 /**
  * Get all search sessions for the current user
@@ -8,20 +8,11 @@ export const getSearchSessions = async (args, context) => {
     throw new HttpError(401, 'Not authorized');
   }
 
-  // Query structure that accommodates Phase 2 filtering
+  // Query structure for Phase 1 - simplified
   const whereClause = { userId: context.user.id };
   
-  // Phase 2 extension point
-  if (args?.teamId) {
-    // In Phase 2, we would validate team membership here
-    whereClause.teamId = args.teamId;
-  }
-
-  // Support for optional filtering
-  if (args?.isTemplate !== undefined) {
-    whereClause.isTemplate = args.isTemplate;
-  }
-
+  // Phase 2 fields removed to match current schema
+  
   try {
     const sessions = await context.entities.SearchSession.findMany({
       where: whereClause,
@@ -32,10 +23,7 @@ export const getSearchSessions = async (args, context) => {
         description: true,
         createdAt: true,
         updatedAt: true,
-        // Phase 2 fields included but will be null in Phase 1
-        teamId: true,
-        isTemplate: true,
-        parentTemplateId: true,
+        // Phase 2 fields removed
         _count: {
           select: {
             searchQueries: true,
