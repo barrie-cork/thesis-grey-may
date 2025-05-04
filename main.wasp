@@ -12,6 +12,9 @@ app ThesisGrey {
     onAuthFailedRedirectTo: "/login",
     onBeforeSignup: import { onBeforeSignup } from "@src/server/auth/hooks.ts",
     // TODO: Add email verification?
+  },
+  client: {
+    setupFn: import { setupClient } from "@src/client/setup.ts"
   }
 }
 

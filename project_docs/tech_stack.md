@@ -15,6 +15,10 @@ Thesis Grey is implemented using the Wasp framework, a full-stack web applicatio
 - **React**: UI component library
 - **TypeScript**: Type-safe JavaScript
 - **TailwindCSS**: Utility-first CSS framework
+- **Shadcn UI**: Component library built on Radix UI primitives and styled with TailwindCSS
+  - Provides accessible, customizable components
+  - Uses class-variance-authority for component variants
+  - Components are installed directly into the codebase for easy customization
 - **React Router**: Client-side routing (provided by Wasp)
 
 ### Backend

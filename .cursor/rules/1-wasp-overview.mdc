@@ -1,11 +1,6 @@
 ---
 description: 
 globs: 
-alwaysApply: false
----
----
-description: 
-globs: 
 alwaysApply: true
 ---
 # 1. Thesis Grey Overview and Core Concepts
@@ -20,12 +15,15 @@ This document covers the fundamental concepts of the Thesis Grey application, bu
 - Built with Wasp, a declarative DSL that integrates React, Node.js, and Prisma.
 - Follows a vertical slice architecture while leveraging Wasp's built-in capabilities.
 - Focuses on providing a streamlined workflow for literature search, review, and reporting.
+- Uses Shadcn UI as its component library for building accessible and customizable UI elements.
 
 ### Thesis Grey Project Structure
 
 - A `main.wasp` file in the root directory defines the app's configuration, entities, routes, pages, and operations.
 - The `schema.prisma` file implicitly defined through entity declarations in `main.wasp`.
 - Custom code lives in feature-specific directories under `src/client/` and `src/server/`.
+- Shadcn UI components are located in `src/client/shared/components/ui/`.
+- CSS variables for Shadcn UI theming are defined in `src/client/global.css`.
 - Key features are organized in verticals:
   - `auth`: User authentication and profile management
   - `searchStrategy`: Building and managing search queries
@@ -33,6 +31,7 @@ This document covers the fundamental concepts of the Thesis Grey application, bu
   - `resultsManager`: Processing search results
   - `reviewResults`: Tagging and annotating results
   - `reporting`: Generating statistics and exports
+  - `shared`: Shared components and utilities, including Shadcn UI components
 
 ### The main.wasp File
 
@@ -52,17 +51,34 @@ This document covers the fundamental concepts of the Thesis Grey application, bu
     auth: {
       userEntity: User,
       methods: {
-        usernameAndPassword: {}
+        usernameAndPassword: {
+          userSignupFields: import { userSignupFields } from "@src/server/auth/userSignupFields.ts"
+        }
       },
-      onAuthFailedRedirectTo: "/login"
+      onAuthFailedRedirectTo: "/login",
+      onBeforeSignup: import { onBeforeSignup } from "@src/server/auth/hooks.ts"
+    },
+    client: {
+      setupFn: import { setupClient } from "@src/client/setup.ts"
     }
   }
 
   // Entities, routes, pages, queries, and actions follow...
   ```
 
+### Frontend Technologies
+
+- **React**: Core UI component library
+- **TailwindCSS**: Utility-first CSS framework for styling
+- **Shadcn UI**: Component library built on Radix UI primitives
+  - Provides accessible, customizable UI components
+  - Components are installed directly in the codebase for easy customization
+  - Uses CSS variables for theming
+  - Main components include Button, Card, Input, and others
+  - For detailed usage information, see rule `5-frontend-styling`
+
 ### Deployment
 
 - Thesis Grey can be deployed to Fly.io using the Wasp deployment command.
-- See the [Wasp Deployment Docs](mdc:thesis-grey/https:/wasp-lang.com/docs/advanced/deployment) for details.
+- Use get-library-docs mcp to See the [Wasp Deployment Docs](mdc:thesis-grey/thesis-grey/thesis-grey/thesis-grey/thesis-grey/thesis-grey/thesis-grey/thesis-grey/thesis-grey/thesis-grey/thesis-grey/https:/wasp-lang.com/docs/advanced/deployment) for details.
 - For Fly.io deployment instructions, see rule `8-deployment`. 
