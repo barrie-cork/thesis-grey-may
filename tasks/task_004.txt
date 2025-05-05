@@ -1,0 +1,98 @@
+# Task ID: 4
+# Title: Implement SERP Execution System
+# Status: pending
+# Dependencies: 3
+# Priority: high
+# Description: Develop the search engine results page (SERP) execution system that integrates with Google Search API via Serper to execute search queries and store results.
+# Details:
+1. Define routes and pages in main.wasp:
+```wasp
+route SearchExecutionRoute { path: "/search-execution/:sessionId", to: SearchExecutionPage }
+page SearchExecutionPage {
+  authRequired: true,
+  component: import { SearchExecutionPage } from "@src/client/serpExecution/pages/SearchExecutionPage"
+}
+```
+2. Implement server queries:
+```typescript
+// getSearchQueries.js
+export const getSearchQueries = async ({ sessionId }, context) => {
+  if (!context.user) { throw new HttpError(401) }
+  return context.entities.SearchQuery.findMany({
+    where: { sessionId }
+  });
+};
+
+// getSearchExecutions.js
+export const getSearchExecutions = async ({ queryId }, context) => {
+  if (!context.user) { throw new HttpError(401) }
+  return context.entities.SearchExecution.findMany({
+    where: { queryId },
+    orderBy: { startTime: 'desc' }
+  });
+};
+```
+3. Implement Google Search API integration via Serper:
+```typescript
+// googleSearchApi.js
+import axios from 'axios';
+
+export const searchGoogle = async (query, maxResults, apiKey) => {
+  const response = await axios.post('https://google.serper.dev/search', {
+    q: query,
+    num: maxResults
+  }, {
+    headers: {
+      'X-API-KEY': apiKey,
+      'Content-Type': 'application/json'
+    }
+  });
+  
+  return response.data.organic || [];
+};
+```
+4. Implement executeSearchQuery action:
+```typescript
+// executeSearchQuery.js
+export const executeSearchQuery = async ({ queryId, maxResults = 100 }, context) => {
+  if (!context.user) { throw new HttpError(401) }
+  
+  // Fetch the query
+  const query = await context.entities.SearchQuery.findUnique({
+    where: { id: queryId },
+    include: { searchSession: true }
+  });
+  
+  if (!query) { throw new HttpError(404, 'Query not found') }
+  
+  // Create execution record
+  const execution = await context.entities.SearchExecution.create({
+    data: {
+      queryId: query.id,
+      sessionId: query.sessionId,
+      status: 'running',
+      startTime: new Date()
+    }
+  });
+  
+  // Execute search in background
+  executeSearchInBackground(context.entities, execution.id, query, maxResults);
+  
+  return execution;
+};
+```
+5. Create React components for:
+   - Search execution interface
+   - Progress tracking
+   - Results preview
+   - Error handling
+6. Implement pagination handling for search results
+
+# Test Strategy:
+1. Test integration with Google Search API via Serper with valid and invalid API keys
+2. Verify search execution flow and background processing
+3. Test storage of raw search results
+4. Validate error handling for API failures
+5. Test pagination handling
+6. Verify progress tracking functionality
+7. Test with various query types and result sizes

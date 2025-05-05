@@ -1,0 +1,122 @@
+# Task ID: 8
+# Title: Implement Shared UI Components
+# Status: pending
+# Dependencies: 1
+# Priority: medium
+# Description: Develop shared UI components that will be used across the application, including navigation, layout, and common interface elements.
+# Details:
+1. Create a shared UI component library in `src/client/shared/components`:
+```typescript
+// Layout.tsx
+import React from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '@wasp/auth';
+
+export const Layout = ({ children }) => {
+  const { data: user } = useAuth();
+  const location = useLocation();
+  
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <nav className="bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            <div className="flex">
+              <div className="flex-shrink-0 flex items-center">
+                <Link to="/" className="text-xl font-bold text-gray-900">Thesis Grey</Link>
+              </div>
+              {user && (
+                <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
+                  <NavLink to="/search-strategy" current={location.pathname.startsWith('/search-strategy')}>Search Strategy</NavLink>
+                  <NavLink to="/results" current={location.pathname.startsWith('/results')}>Results</NavLink>
+                  <NavLink to="/review" current={location.pathname.startsWith('/review')}>Review</NavLink>
+                  <NavLink to="/reporting" current={location.pathname.startsWith('/reporting')}>Reports</NavLink>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center">
+              {user ? (
+                <Link to="/profile" className="text-sm font-medium text-gray-700 hover:text-gray-900">
+                  Profile
+                </Link>
+              ) : (
+                <div className="flex space-x-4">
+                  <Link to="/login" className="text-sm font-medium text-gray-700 hover:text-gray-900">
+                    Log in
+                  </Link>
+                  <Link to="/signup" className="text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-md">
+                    Sign up
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </nav>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {children}
+      </main>
+    </div>
+  );
+};
+
+const NavLink = ({ to, current, children }) => (
+  <Link
+    to={to}
+    className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+      current
+        ? 'border-indigo-500 text-gray-900'
+        : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+    }`}
+  >
+    {children}
+  </Link>
+);
+```
+2. Create common UI components:
+   - Button.tsx: Primary, secondary, and tertiary button styles
+   - Card.tsx: Card container for content
+   - Modal.tsx: Reusable modal dialog
+   - Table.tsx: Data table with sorting and filtering
+   - Form components: Input, Select, Checkbox, etc.
+   - Alert.tsx: Success, error, warning, and info alerts
+   - Pagination.tsx: Pagination controls for lists
+   - Loading.tsx: Loading indicators and spinners
+3. Implement TailwindCSS configuration:
+```javascript
+// tailwind.config.js
+module.exports = {
+  content: [
+    './src/**/*.{js,jsx,ts,tsx}',
+  ],
+  theme: {
+    extend: {
+      colors: {
+        primary: {
+          50: '#f0f9ff',
+          100: '#e0f2fe',
+          // ... other shades
+          900: '#0c4a6e',
+        },
+      },
+    },
+  },
+  plugins: [
+    require('@tailwindcss/forms'),
+  ],
+};
+```
+4. Create utility hooks in `src/client/shared/hooks`:
+   - useDebounce.ts: For debouncing input changes
+   - usePagination.ts: For handling pagination state
+   - useSort.ts: For handling sorting state
+   - useFilter.ts: For handling filtering state
+
+# Test Strategy:
+1. Test each shared component in isolation with various props and states
+2. Verify responsive design across different screen sizes
+3. Test accessibility compliance using tools like axe-core
+4. Verify consistent styling across the application
+5. Test utility hooks with different inputs and edge cases
+6. Validate integration of components in different contexts
+7. Test component composition patterns

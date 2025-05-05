@@ -140,8 +140,6 @@ node_modules/
 # OS specific
 .DS_Store
 # Task files
-tasks.json
-tasks/
 
 # Specific sensitive files
 copy.env # Backup environment files

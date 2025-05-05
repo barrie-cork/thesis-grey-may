@@ -1,0 +1,256 @@
+{
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Initialize Wasp Project with PostgreSQL Database",
+      "description": "Set up the initial Wasp project structure with PostgreSQL database configuration and implement the full database schema as defined in the PRD.",
+      "status": "done",
+      "dependencies": [],
+      "priority": "high",
+      "details": "1. Install Wasp CLI: `curl -sSL https://get.wasp-lang.dev/installer.sh | sh`\n2. Create new Wasp project: `wasp new thesis-grey`\n3. Configure PostgreSQL in main.wasp file:\n```wasp\napp ThesisGrey {\n  title: \"Thesis Grey\",\n  wasp: { version: \"^0.16.0\" },\n  db: {\n    system: PostgreSQL,\n    prisma: {\n      clientPreviewFeatures: [\"extendedWhereUnique\"]\n    }\n  }\n}\n```\n4. Implement the full database schema in schema.prisma file as specified in the PRD, including all models: User, SearchSession, SearchQuery, SearchExecution, RawSearchResult, ProcessedResult, DuplicateRelationship, ReviewTag, ReviewTagAssignment, ReviewAssignment, and Note.\n5. Set up the project structure following Vertical Slice Architecture (VSA) principles as outlined in the PRD.\n6. Create initial database migration: `wasp db migrate-dev`",
+      "testStrategy": "1. Verify that the Wasp project initializes without errors\n2. Confirm that the database schema is correctly implemented by checking the generated Prisma client\n3. Test database connection and migrations\n4. Validate that all models are correctly defined with proper relationships\n5. Ensure the project structure follows the VSA pattern defined in the PRD",
+      "subtasks": []
+    },
+    {
+      "id": 2,
+      "title": "Implement Authentication System",
+      "description": "Implement the authentication system using Wasp's built-in authentication features, including user registration, login, and profile management.",
+      "status": "completed",
+      "dependencies": [
+        1
+      ],
+      "priority": "high",
+      "details": "1. Configure authentication in main.wasp:\n```wasp\napp ThesisGrey {\n  auth: {\n    userEntity: User,\n    methods: {\n      usernameAndPassword: {},\n    },\n    onAuthFailedRedirectTo: \"/login\"\n  }\n}\n```\n2. Create login route and page:\n```wasp\nroute LoginRoute { path: \"/login\", to: LoginPage }\npage LoginPage {\n  component: import { LoginPage } from \"@src/client/auth/pages/LoginPage\"\n}\n```\n3. Create signup route and page:\n```wasp\nroute SignupRoute { path: \"/signup\", to: SignupPage }\npage SignupPage {\n  component: import { SignupPage } from \"@src/client/auth/pages/SignupPage\"\n}\n```\n4. Create profile route and page:\n```wasp\nroute ProfileRoute { path: \"/profile\", to: ProfilePage }\npage ProfilePage {\n  authRequired: true,\n  component: import { ProfilePage } from \"@src/client/auth/pages/ProfilePage\"\n}\n```\n5. Implement React components for login, signup, and profile pages\n6. Add basic role-based permissions (Researcher role)\n7. Implement JWT-based authentication using Wasp's built-in system",
+      "testStrategy": "1. Test user registration flow with valid and invalid inputs\n2. Test login functionality with correct and incorrect credentials\n3. Verify JWT token generation and validation\n4. Test profile page access with and without authentication\n5. Verify that protected routes redirect unauthenticated users to login page\n6. Test basic role-based permissions",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Create User Entity",
+          "description": "Define the User entity in the main.wasp file with necessary fields for authentication and user profile information.",
+          "dependencies": [],
+          "details": "Create the User entity with fields like id, username, email, and any additional profile information. Ensure it's properly referenced in the auth configuration.",
+          "status": "completed",
+          "testStrategy": "Verify the User entity is created in the database schema after migration."
+        },
+        {
+          "id": 2,
+          "title": "Implement LoginPage Component",
+          "description": "Create the React component for the login page using Wasp's Auth UI components.",
+          "dependencies": [
+            1
+          ],
+          "details": "Implement the LoginPage.jsx component in @src/client/auth/pages/ directory. Use Wasp's built-in useAuth() hook and login form components.",
+          "status": "completed",
+          "testStrategy": "Test login functionality with valid and invalid credentials."
+        },
+        {
+          "id": 3,
+          "title": "Implement SignupPage Component",
+          "description": "Create the React component for the signup page using Wasp's Auth UI components.",
+          "dependencies": [
+            1
+          ],
+          "details": "Implement the SignupPage.jsx component in @src/client/auth/pages/ directory. Include form validation for username, password, and any additional signup fields.",
+          "status": "completed",
+          "testStrategy": "Test user registration with various input combinations."
+        },
+        {
+          "id": 4,
+          "title": "Implement ProfilePage Component",
+          "description": "Create the React component for the user profile page with user information display and edit functionality.",
+          "dependencies": [
+            1,
+            2
+          ],
+          "details": "Implement the ProfilePage.jsx component in @src/client/auth/pages/ directory. Use context.user to access user data and create forms for updating profile information.",
+          "status": "pending",
+          "testStrategy": "Test profile data display and update functionality."
+        },
+        {
+          "id": 5,
+          "title": "Add Logout Functionality",
+          "description": "Implement logout button and functionality in the application.",
+          "dependencies": [
+            2,
+            4
+          ],
+          "details": "Add a logout button to the navigation bar or profile page. Use Wasp's built-in logout() action to handle the logout process.",
+          "status": "completed",
+          "testStrategy": "Verify logout clears authentication state and redirects to login page."
+        },
+        {
+          "id": 6,
+          "title": "Implement Role-Based Authorization",
+          "description": "Implement role-based access control using the existing \"researcher\" role field.",
+          "dependencies": [
+            1,
+            4
+          ],
+          "details": "Users select a global role ('Researcher' or 'Admin') at signup, stored in `User.role`. For session-specific actions (reviewing, tagging), Phase 1 authorization relies on checking if the logged-in user's ID (`context.user.id`) matches the session creator's ID (`session.userId`), making the creator the implicit 'Lead Reviewer' for their own sessions. Defer explicit session roles and invitations to Phase 2.",
+          "status": "completed",
+          "testStrategy": "Test access control by attempting to access restricted features with different user roles."
+        },
+        {
+          "id": 7,
+          "title": "Create Protected Routes",
+          "description": "Implement route protection for pages that require authentication.",
+          "dependencies": [
+            2,
+            3,
+            4
+          ],
+          "details": "Add authRequired: true to all routes that should only be accessible to authenticated users. Create a redirect mechanism for unauthenticated users.",
+          "status": "completed",
+          "testStrategy": "Test accessing protected routes with and without authentication."
+        },
+        {
+          "id": 8,
+          "title": "Implement Password Reset Functionality",
+          "description": "Add password reset capability to the authentication system.",
+          "dependencies": [
+            2
+          ],
+          "details": "Create password reset request and confirmation pages. Implement the necessary backend logic to handle password reset tokens and updates.",
+          "status": "completed",
+          "testStrategy": "Test the complete password reset flow from request to successful reset."
+        },
+        {
+          "id": 9,
+          "title": "Add Additional Signup Fields",
+          "description": "Extend the signup form with additional user profile fields (excluding role).",
+          "dependencies": [
+            3
+          ],
+          "details": "Use defineAdditionalSignupFields (or similar mechanism if Wasp API changed) to add and validate extra profile fields during signup. The `role` field (Researcher/Admin) is handled separately via the dropdown added to the SignupPage component and validated by `userSignupFields.ts`. No other fields were deemed necessary for Phase 1 signup beyond email/password/role.",
+          "status": "completed",
+          "testStrategy": "Test signup with various combinations of the additional fields."
+        },
+        {
+          "id": 10,
+          "title": "Implement Authentication State Management",
+          "description": "Create a global authentication state management system for the client application.",
+          "dependencies": [
+            2,
+            3,
+            5
+          ],
+          "details": "Wasp's built-in useAuth() hook provides the necessary global auth context and state (user data, isLoading, error) for Phase 1 requirements. Components utilize this hook for managing state and handling loading/errors locally.",
+          "status": "completed",
+          "testStrategy": "Test authentication state persistence across page refreshes and navigation."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Develop Search Strategy Builder",
+      "description": "Implement the search strategy builder feature that allows researchers to create and manage search sessions and queries with support for PICO framework.",
+      "status": "pending",
+      "dependencies": [
+        2
+      ],
+      "priority": "high",
+      "details": "1. Define routes and pages in main.wasp:\n```wasp\nroute SearchStrategyRoute { path: \"/search-strategy\", to: SearchStrategyPage }\npage SearchStrategyPage {\n  authRequired: true,\n  component: import { SearchStrategyPage } from \"@src/client/searchStrategy/pages/SearchStrategyPage\"\n}\n```\n2. Implement server queries:\n```typescript\n// getSearchSessions.js\nexport const getSearchSessions = async (args, context) => {\n  if (!context.user) { throw new HttpError(401) }\n  return context.entities.SearchSession.findMany({\n    where: { userId: context.user.id },\n    orderBy: { createdAt: 'desc' }\n  });\n};\n\n// getSearchSession.js\nexport const getSearchSession = async ({ id }, context) => {\n  if (!context.user) { throw new HttpError(401) }\n  return context.entities.SearchSession.findFirst({\n    where: { id, userId: context.user.id },\n    include: { searchQueries: true }\n  });\n};\n```\n3. Implement server actions:\n```typescript\n// createSearchSession.js\nexport const createSearchSession = async ({ name, description }, context) => {\n  if (!context.user) { throw new HttpError(401) }\n  return context.entities.SearchSession.create({\n    data: {\n      name,\n      description,\n      userId: context.user.id\n    }\n  });\n};\n\n// createSearchQuery.js\nexport const createSearchQuery = async ({ sessionId, query, description }, context) => {\n  if (!context.user) { throw new HttpError(401) }\n  return context.entities.SearchQuery.create({\n    data: {\n      query,\n      description,\n      sessionId\n    }\n  });\n};\n```\n4. Create React components for:\n   - Search session management\n   - PICO framework input (Population, Interest, Context)\n   - Domain selection\n   - File type filtering\n   - Query generation and preview\n5. Implement query generation logic that combines PICO elements into effective search strings",
+      "testStrategy": "1. Test creation, retrieval, and updating of search sessions\n2. Verify PICO framework implementation correctly structures search queries\n3. Test domain selection and file type filtering functionality\n4. Validate query generation logic produces expected search strings\n5. Test query preview functionality\n6. Verify that all operations respect user authentication and authorization",
+      "subtasks": []
+    },
+    {
+      "id": 4,
+      "title": "Implement SERP Execution System",
+      "description": "Develop the search engine results page (SERP) execution system that integrates with Google Search API via Serper to execute search queries and store results.",
+      "status": "pending",
+      "dependencies": [
+        3
+      ],
+      "priority": "high",
+      "details": "1. Define routes and pages in main.wasp:\n```wasp\nroute SearchExecutionRoute { path: \"/search-execution/:sessionId\", to: SearchExecutionPage }\npage SearchExecutionPage {\n  authRequired: true,\n  component: import { SearchExecutionPage } from \"@src/client/serpExecution/pages/SearchExecutionPage\"\n}\n```\n2. Implement server queries:\n```typescript\n// getSearchQueries.js\nexport const getSearchQueries = async ({ sessionId }, context) => {\n  if (!context.user) { throw new HttpError(401) }\n  return context.entities.SearchQuery.findMany({\n    where: { sessionId }\n  });\n};\n\n// getSearchExecutions.js\nexport const getSearchExecutions = async ({ queryId }, context) => {\n  if (!context.user) { throw new HttpError(401) }\n  return context.entities.SearchExecution.findMany({\n    where: { queryId },\n    orderBy: { startTime: 'desc' }\n  });\n};\n```\n3. Implement Google Search API integration via Serper:\n```typescript\n// googleSearchApi.js\nimport axios from 'axios';\n\nexport const searchGoogle = async (query, maxResults, apiKey) => {\n  const response = await axios.post('https://google.serper.dev/search', {\n    q: query,\n    num: maxResults\n  }, {\n    headers: {\n      'X-API-KEY': apiKey,\n      'Content-Type': 'application/json'\n    }\n  });\n  \n  return response.data.organic || [];\n};\n```\n4. Implement executeSearchQuery action:\n```typescript\n// executeSearchQuery.js\nexport const executeSearchQuery = async ({ queryId, maxResults = 100 }, context) => {\n  if (!context.user) { throw new HttpError(401) }\n  \n  // Fetch the query\n  const query = await context.entities.SearchQuery.findUnique({\n    where: { id: queryId },\n    include: { searchSession: true }\n  });\n  \n  if (!query) { throw new HttpError(404, 'Query not found') }\n  \n  // Create execution record\n  const execution = await context.entities.SearchExecution.create({\n    data: {\n      queryId: query.id,\n      sessionId: query.sessionId,\n      status: 'running',\n      startTime: new Date()\n    }\n  });\n  \n  // Execute search in background\n  executeSearchInBackground(context.entities, execution.id, query, maxResults);\n  \n  return execution;\n};\n```\n5. Create React components for:\n   - Search execution interface\n   - Progress tracking\n   - Results preview\n   - Error handling\n6. Implement pagination handling for search results",
+      "testStrategy": "1. Test integration with Google Search API via Serper with valid and invalid API keys\n2. Verify search execution flow and background processing\n3. Test storage of raw search results\n4. Validate error handling for API failures\n5. Test pagination handling\n6. Verify progress tracking functionality\n7. Test with various query types and result sizes",
+      "subtasks": []
+    },
+    {
+      "id": 5,
+      "title": "Build Results Manager",
+      "description": "Develop the results manager feature that processes raw search results, normalizes data, extracts metadata, and provides filtering and sorting capabilities.",
+      "status": "pending",
+      "dependencies": [
+        4
+      ],
+      "priority": "medium",
+      "details": "1. Define routes and pages in main.wasp:\n```wasp\nroute ResultsManagerRoute { path: \"/results/:sessionId\", to: ResultsManagerPage }\npage ResultsManagerPage {\n  authRequired: true,\n  component: import { ResultsManagerPage } from \"@src/client/resultsManager/pages/ResultsManagerPage\"\n}\n```\n2. Implement server queries:\n```typescript\n// getRawResults.js\nexport const getRawResults = async ({ sessionId }, context) => {\n  if (!context.user) { throw new HttpError(401) }\n  \n  // Get all queries for this session\n  const queries = await context.entities.SearchQuery.findMany({\n    where: { sessionId },\n    select: { id: true }\n  });\n  \n  const queryIds = queries.map(q => q.id);\n  \n  // Get raw results for all queries in this session\n  return context.entities.RawSearchResult.findMany({\n    where: { queryId: { in: queryIds } }\n  });\n};\n\n// getProcessedResults.js\nexport const getProcessedResults = async ({ sessionId }, context) => {\n  if (!context.user) { throw new HttpError(401) }\n  \n  return context.entities.ProcessedResult.findMany({\n    where: { sessionId },\n    include: {\n      rawSearchResult: true,\n      reviewTags: {\n        include: { tag: true }\n      }\n    }\n  });\n};\n```\n3. Implement processSessionResults action:\n```typescript\n// processSessionResults.js\nexport const processSessionResults = async ({ sessionId }, context) => {\n  if (!context.user) { throw new HttpError(401) }\n  \n  // Get all raw results for this session\n  const rawResults = await getRawResults({ sessionId }, context);\n  \n  // Process each result\n  const processedResults = [];\n  for (const rawResult of rawResults) {\n    // Check if already processed\n    const existing = await context.entities.ProcessedResult.findFirst({\n      where: { rawResultId: rawResult.id }\n    });\n    \n    if (existing) continue;\n    \n    // Extract metadata\n    const metadata = extractMetadata(rawResult);\n    \n    // Create processed result\n    const processed = await context.entities.ProcessedResult.create({\n      data: {\n        rawResultId: rawResult.id,\n        sessionId,\n        title: rawResult.title,\n        url: normalizeUrl(rawResult.url),\n        snippet: rawResult.snippet,\n        metadata\n      }\n    });\n    \n    processedResults.push(processed);\n  }\n  \n  // Basic URL-based duplicate detection\n  await detectBasicDuplicates(context.entities, sessionId);\n  \n  return processedResults;\n};\n```\n4. Implement helper functions:\n```typescript\n// Extract basic metadata from raw result\nfunction extractMetadata(rawResult) {\n  const url = new URL(rawResult.url);\n  return {\n    domain: url.hostname,\n    fileType: getFileTypeFromUrl(rawResult.url),\n    searchEngine: rawResult.searchEngine,\n    rank: rawResult.rank\n  };\n}\n\n// Simple URL normalization\nfunction normalizeUrl(url) {\n  try {\n    const parsed = new URL(url);\n    return parsed.origin + parsed.pathname;\n  } catch (e) {\n    return url;\n  }\n}\n```\n5. Create React components for:\n   - Results list view\n   - Filtering and sorting interface\n   - Result preview\n   - Metadata display\n   - Basic duplicate management",
+      "testStrategy": "1. Test raw result processing and normalization\n2. Verify URL normalization functionality\n3. Test metadata extraction from various result types\n4. Validate filtering and sorting capabilities\n5. Test result preview interface\n6. Verify basic duplicate detection\n7. Test with various result sizes and formats",
+      "subtasks": []
+    },
+    {
+      "id": 6,
+      "title": "Implement Review Results Feature",
+      "description": "Develop the review results feature that allows researchers to tag, annotate, and review processed search results following PRISMA-compliant workflows.",
+      "status": "pending",
+      "dependencies": [
+        5
+      ],
+      "priority": "medium",
+      "details": "1. Define routes and pages in main.wasp:\n```wasp\nroute ReviewRoute { path: \"/review/:sessionId\", to: ReviewPage }\npage ReviewPage {\n  authRequired: true,\n  component: import { ReviewPage } from \"@src/client/reviewResults/pages/ReviewPage\"\n}\n```\n2. Implement server queries:\n```typescript\n// getReviewTags.js\nexport const getReviewTags = async ({ sessionId }, context) => {\n  if (!context.user) { throw new HttpError(401) }\n  \n  return context.entities.ReviewTag.findMany({\n    where: { sessionId }\n  });\n};\n\n// getResultsWithTags.js\nexport const getResultsWithTags = async ({ sessionId }, context) => {\n  if (!context.user) { throw new HttpError(401) }\n  \n  return context.entities.ProcessedResult.findMany({\n    where: { sessionId },\n    include: {\n      rawSearchResult: true,\n      reviewTags: {\n        include: { tag: true }\n      },\n      notes: true\n    }\n  });\n};\n```\n3. Implement server actions:\n```typescript\n// createReviewTag.js\nexport const createReviewTag = async ({ sessionId, name, color }, context) => {\n  if (!context.user) { throw new HttpError(401) }\n  \n  return context.entities.ReviewTag.create({\n    data: {\n      sessionId,\n      name,\n      color\n    }\n  });\n};\n\n// assignTag.js\nexport const assignTag = async ({ resultId, tagId }, context) => {\n  if (!context.user) { throw new HttpError(401) }\n  \n  // Check if already assigned\n  const existing = await context.entities.ReviewTagAssignment.findFirst({\n    where: {\n      resultId,\n      tagId\n    }\n  });\n  \n  if (existing) return existing;\n  \n  return context.entities.ReviewTagAssignment.create({\n    data: {\n      resultId,\n      tagId\n    }\n  });\n};\n\n// createNote.js\nexport const createNote = async ({ resultId, content }, context) => {\n  if (!context.user) { throw new HttpError(401) }\n  \n  return context.entities.Note.create({\n    data: {\n      resultId,\n      content\n    }\n  });\n};\n```\n4. Create React components for:\n   - Review interface with result details\n   - Tag management (create, assign, remove)\n   - Notes system\n   - Inclusion/exclusion tagging\n   - Progress tracking\n   - PRISMA-compliant workflow visualization\n5. Implement filtering by tag functionality",
+      "testStrategy": "1. Test tag creation, assignment, and removal\n2. Verify notes creation and retrieval\n3. Test inclusion/exclusion tagging workflow\n4. Validate progress tracking functionality\n5. Test filtering by tag\n6. Verify PRISMA-compliant workflow implementation\n7. Test with various result sets and tag combinations",
+      "subtasks": []
+    },
+    {
+      "id": 7,
+      "title": "Develop Reporting & Export Feature",
+      "description": "Implement the reporting and export feature that generates PRISMA flow diagrams, basic statistics, and allows exporting results in CSV and JSON formats.",
+      "status": "pending",
+      "dependencies": [
+        6
+      ],
+      "priority": "medium",
+      "details": "1. Define routes and pages in main.wasp:\n```wasp\nroute ReportingRoute { path: \"/reporting/:sessionId\", to: ReportingPage }\npage ReportingPage {\n  authRequired: true,\n  component: import { ReportingPage } from \"@src/client/reporting/pages/ReportingPage\"\n}\n```\n2. Implement server queries:\n```typescript\n// getReportData.js\nexport const getReportData = async ({ sessionId }, context) => {\n  if (!context.user) { throw new HttpError(401) }\n  \n  // Get session details\n  const session = await context.entities.SearchSession.findUnique({\n    where: { id: sessionId },\n    include: {\n      searchQueries: true,\n      searchExecutions: true\n    }\n  });\n  \n  // Get processed results with tags\n  const results = await context.entities.ProcessedResult.findMany({\n    where: { sessionId },\n    include: {\n      reviewTags: {\n        include: { tag: true }\n      }\n    }\n  });\n  \n  // Calculate basic statistics\n  const stats = calculateStatistics(session, results);\n  \n  return {\n    session,\n    results,\n    stats\n  };\n};\n```\n3. Implement export action:\n```typescript\n// exportResults.js\nexport const exportResults = async ({ sessionId, format }, context) => {\n  if (!context.user) { throw new HttpError(401) }\n  \n  // Get report data\n  const { session, results } = await getReportData({ sessionId }, context);\n  \n  // Format data based on requested format\n  if (format === 'csv') {\n    return generateCsvExport(session, results);\n  } else if (format === 'json') {\n    return generateJsonExport(session, results);\n  } else {\n    throw new HttpError(400, 'Unsupported export format');\n  }\n};\n```\n4. Implement helper functions:\n```typescript\n// Calculate basic statistics\nfunction calculateStatistics(session, results) {\n  const totalResults = results.length;\n  \n  // Count results by tag\n  const tagCounts = {};\n  results.forEach(result => {\n    result.reviewTags.forEach(assignment => {\n      const tagName = assignment.tag.name;\n      tagCounts[tagName] = (tagCounts[tagName] || 0) + 1;\n    });\n  });\n  \n  // Count results by domain\n  const domainCounts = {};\n  results.forEach(result => {\n    const domain = JSON.parse(result.metadata).domain;\n    domainCounts[domain] = (domainCounts[domain] || 0) + 1;\n  });\n  \n  return {\n    totalResults,\n    tagCounts,\n    domainCounts,\n    queriesCount: session.searchQueries.length,\n    executionsCount: session.searchExecutions.length\n  };\n}\n\n// Generate CSV export\nfunction generateCsvExport(session, results) {\n  // Implementation details for CSV generation\n}\n\n// Generate JSON export\nfunction generateJsonExport(session, results) {\n  // Implementation details for JSON generation\n}\n```\n5. Create React components for:\n   - PRISMA flow diagram visualization\n   - Statistics display\n   - Export options interface\n   - Report generation\n6. Implement basic PRISMA flow diagram generation using a charting library like Chart.js or D3.js",
+      "testStrategy": "1. Test report data generation and statistics calculation\n2. Verify CSV export functionality with various result sets\n3. Test JSON export functionality\n4. Validate PRISMA flow diagram generation\n5. Test with different session configurations and result counts\n6. Verify that exports contain all required data\n7. Test export with and without tags and notes",
+      "subtasks": []
+    },
+    {
+      "id": 8,
+      "title": "Implement Shared UI Components",
+      "description": "Develop shared UI components that will be used across the application, including navigation, layout, and common interface elements.",
+      "status": "pending",
+      "dependencies": [
+        1
+      ],
+      "priority": "medium",
+      "details": "1. Create a shared UI component library in `src/client/shared/components`:\n```typescript\n// Layout.tsx\nimport React from 'react';\nimport { Link, useLocation } from 'react-router-dom';\nimport { useAuth } from '@wasp/auth';\n\nexport const Layout = ({ children }) => {\n  const { data: user } = useAuth();\n  const location = useLocation();\n  \n  return (\n    <div className=\"min-h-screen bg-gray-50\">\n      <nav className=\"bg-white shadow-sm\">\n        <div className=\"max-w-7xl mx-auto px-4 sm:px-6 lg:px-8\">\n          <div className=\"flex justify-between h-16\">\n            <div className=\"flex\">\n              <div className=\"flex-shrink-0 flex items-center\">\n                <Link to=\"/\" className=\"text-xl font-bold text-gray-900\">Thesis Grey</Link>\n              </div>\n              {user && (\n                <div className=\"hidden sm:ml-6 sm:flex sm:space-x-8\">\n                  <NavLink to=\"/search-strategy\" current={location.pathname.startsWith('/search-strategy')}>Search Strategy</NavLink>\n                  <NavLink to=\"/results\" current={location.pathname.startsWith('/results')}>Results</NavLink>\n                  <NavLink to=\"/review\" current={location.pathname.startsWith('/review')}>Review</NavLink>\n                  <NavLink to=\"/reporting\" current={location.pathname.startsWith('/reporting')}>Reports</NavLink>\n                </div>\n              )}\n            </div>\n            <div className=\"flex items-center\">\n              {user ? (\n                <Link to=\"/profile\" className=\"text-sm font-medium text-gray-700 hover:text-gray-900\">\n                  Profile\n                </Link>\n              ) : (\n                <div className=\"flex space-x-4\">\n                  <Link to=\"/login\" className=\"text-sm font-medium text-gray-700 hover:text-gray-900\">\n                    Log in\n                  </Link>\n                  <Link to=\"/signup\" className=\"text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-md\">\n                    Sign up\n                  </Link>\n                </div>\n              )}\n            </div>\n          </div>\n        </div>\n      </nav>\n      <main className=\"max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6\">\n        {children}\n      </main>\n    </div>\n  );\n};\n\nconst NavLink = ({ to, current, children }) => (\n  <Link\n    to={to}\n    className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${\n      current\n        ? 'border-indigo-500 text-gray-900'\n        : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'\n    }`}\n  >\n    {children}\n  </Link>\n);\n```\n2. Create common UI components:\n   - Button.tsx: Primary, secondary, and tertiary button styles\n   - Card.tsx: Card container for content\n   - Modal.tsx: Reusable modal dialog\n   - Table.tsx: Data table with sorting and filtering\n   - Form components: Input, Select, Checkbox, etc.\n   - Alert.tsx: Success, error, warning, and info alerts\n   - Pagination.tsx: Pagination controls for lists\n   - Loading.tsx: Loading indicators and spinners\n3. Implement TailwindCSS configuration:\n```javascript\n// tailwind.config.js\nmodule.exports = {\n  content: [\n    './src/**/*.{js,jsx,ts,tsx}',\n  ],\n  theme: {\n    extend: {\n      colors: {\n        primary: {\n          50: '#f0f9ff',\n          100: '#e0f2fe',\n          // ... other shades\n          900: '#0c4a6e',\n        },\n      },\n    },\n  },\n  plugins: [\n    require('@tailwindcss/forms'),\n  ],\n};\n```\n4. Create utility hooks in `src/client/shared/hooks`:\n   - useDebounce.ts: For debouncing input changes\n   - usePagination.ts: For handling pagination state\n   - useSort.ts: For handling sorting state\n   - useFilter.ts: For handling filtering state",
+      "testStrategy": "1. Test each shared component in isolation with various props and states\n2. Verify responsive design across different screen sizes\n3. Test accessibility compliance using tools like axe-core\n4. Verify consistent styling across the application\n5. Test utility hooks with different inputs and edge cases\n6. Validate integration of components in different contexts\n7. Test component composition patterns",
+      "subtasks": []
+    },
+    {
+      "id": 9,
+      "title": "Implement Error Handling and Logging",
+      "description": "Develop a comprehensive error handling and logging system to capture, report, and recover from errors throughout the application.",
+      "status": "pending",
+      "dependencies": [
+        1
+      ],
+      "priority": "medium",
+      "details": "1. Create error handling utilities in `src/shared/errors.ts`:\n```typescript\n// Error types\nexport class AppError extends Error {\n  constructor(message: string, public code: string, public statusCode: number = 500) {\n    super(message);\n    this.name = 'AppError';\n  }\n}\n\nexport class ValidationError extends AppError {\n  constructor(message: string) {\n    super(message, 'VALIDATION_ERROR', 400);\n    this.name = 'ValidationError';\n  }\n}\n\nexport class AuthenticationError extends AppError {\n  constructor(message: string = 'Authentication required') {\n    super(message, 'AUTHENTICATION_ERROR', 401);\n    this.name = 'AuthenticationError';\n  }\n}\n\nexport class AuthorizationError extends AppError {\n  constructor(message: string = 'Not authorized') {\n    super(message, 'AUTHORIZATION_ERROR', 403);\n    this.name = 'AuthorizationError';\n  }\n}\n\nexport class NotFoundError extends AppError {\n  constructor(message: string = 'Resource not found') {\n    super(message, 'NOT_FOUND', 404);\n    this.name = 'NotFoundError';\n  }\n}\n```\n2. Implement server-side error handling middleware:\n```typescript\n// src/server/middleware/errorHandler.ts\nimport { AppError } from '../../shared/errors';\n\nexport const errorHandler = (err, req, res, next) => {\n  console.error('Error:', err);\n  \n  if (err instanceof AppError) {\n    return res.status(err.statusCode).json({\n      error: {\n        message: err.message,\n        code: err.code\n      }\n    });\n  }\n  \n  // Handle Prisma errors\n  if (err.code && err.code.startsWith('P')) {\n    return res.status(400).json({\n      error: {\n        message: 'Database operation failed',\n        code: 'DATABASE_ERROR',\n        details: process.env.NODE_ENV === 'development' ? err.message : undefined\n      }\n    });\n  }\n  \n  // Default error response\n  return res.status(500).json({\n    error: {\n      message: 'An unexpected error occurred',\n      code: 'INTERNAL_SERVER_ERROR',\n      details: process.env.NODE_ENV === 'development' ? err.message : undefined\n    }\n  });\n};\n```\n3. Create client-side error handling in `src/client/shared/errors.ts`:\n```typescript\nimport { toast } from 'react-toastify';\n\n// Error handling for API responses\nexport const handleApiError = (error) => {\n  console.error('API Error:', error);\n  \n  const message = error.response?.data?.error?.message || error.message || 'An unexpected error occurred';\n  \n  toast.error(message, {\n    position: 'top-right',\n    autoClose: 5000,\n    hideProgressBar: false,\n    closeOnClick: true,\n    pauseOnHover: true,\n    draggable: true,\n  });\n  \n  return message;\n};\n\n// Error boundary component\nexport class ErrorBoundary extends React.Component {\n  constructor(props) {\n    super(props);\n    this.state = { hasError: false, error: null };\n  }\n  \n  static getDerivedStateFromError(error) {\n    return { hasError: true, error };\n  }\n  \n  componentDidCatch(error, errorInfo) {\n    console.error('Component Error:', error, errorInfo);\n    // Log to monitoring service if available\n  }\n  \n  render() {\n    if (this.state.hasError) {\n      return (\n        <div className=\"p-4 bg-red-50 border border-red-200 rounded-md\">\n          <h2 className=\"text-lg font-medium text-red-800\">Something went wrong</h2>\n          <p className=\"mt-1 text-sm text-red-700\">\n            {this.state.error?.message || 'An unexpected error occurred'}\n          </p>\n          <button\n            className=\"mt-3 px-4 py-2 bg-red-100 text-red-800 rounded-md hover:bg-red-200\"\n            onClick={() => this.setState({ hasError: false, error: null })}\n          >\n            Try again\n          </button>\n        </div>\n      );\n    }\n    \n    return this.props.children;\n  }\n}\n```\n4. Implement logging utilities in `src/server/shared/logger.ts`:\n```typescript\nconst winston = require('winston');\n\nconst logger = winston.createLogger({\n  level: process.env.LOG_LEVEL || 'info',\n  format: winston.format.combine(\n    winston.format.timestamp(),\n    winston.format.json()\n  ),\n  transports: [\n    new winston.transports.Console({\n      format: winston.format.combine(\n        winston.format.colorize(),\n        winston.format.simple()\n      )\n    }),\n    new winston.transports.File({ filename: 'error.log', level: 'error' }),\n    new winston.transports.File({ filename: 'combined.log' })\n  ]\n});\n\nexport default logger;\n```\n5. Add error handling to all API calls and critical operations",
+      "testStrategy": "1. Test error handling for various error types (validation, authentication, etc.)\n2. Verify error logging functionality captures appropriate details\n3. Test client-side error handling with mocked API errors\n4. Validate error boundary component catches and displays component errors\n5. Test error recovery mechanisms\n6. Verify consistent error formatting across the application\n7. Test logging levels and output formats",
+      "subtasks": []
+    },
+    {
+      "id": 10,
+      "title": "Configure Deployment Pipeline",
+      "description": "Set up the deployment pipeline for the application, including Docker containerization and deployment configuration for development and production environments.",
+      "status": "pending",
+      "dependencies": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "priority": "low",
+      "details": "1. Create Dockerfile for containerization:\n```dockerfile\n# Dockerfile\nFROM node:18-alpine AS builder\n\nWORKDIR /app\n\n# Install Wasp\nRUN apk add --no-cache curl bash\nRUN curl -sSL https://get.wasp-lang.dev/installer.sh | bash\n\n# Copy Wasp project files\nCOPY main.wasp ./\nCOPY src ./src\nCOPY public ./public\nCOPY migrations ./migrations\n\n# Build the Wasp project\nRUN wasp build\n\n# Production stage\nFROM node:18-alpine\n\nWORKDIR /app\n\n# Copy built application from builder stage\nCOPY --from=builder /app/.wasp/build .\n\n# Install production dependencies\nRUN cd server && npm install --production\nRUN cd client && npm install --production\n\n# Set environment variables\nENV NODE_ENV=production\n\n# Expose ports\nEXPOSE 3001\n\n# Start the application\nCMD [\"node\", \"server/src/server.js\"]\n```\n2. Create docker-compose.yml for local development:\n```yaml\n# docker-compose.yml\nversion: '3.8'\n\nservices:\n  postgres:\n    image: postgres:14\n    environment:\n      POSTGRES_USER: postgres\n      POSTGRES_PASSWORD: postgres\n      POSTGRES_DB: thesis_grey\n    ports:\n      - \"5432:5432\"\n    volumes:\n      - postgres_data:/var/lib/postgresql/data\n\nvolumes:\n  postgres_data:\n```\n3. Create .env.example file:\n```\n# Database\nDATABASE_URL=postgresql://postgres:postgres@localhost:5432/thesis_grey\n\n# Authentication\nJWT_SECRET=your-jwt-secret-key\n\n# APIs\nSERPER_API_KEY=your-serper-api-key\n\n# Environment\nNODE_ENV=development\n```\n4. Create GitHub Actions workflow for CI/CD:\n```yaml\n# .github/workflows/ci-cd.yml\nname: CI/CD Pipeline\n\non:\n  push:\n    branches: [ main ]\n  pull_request:\n    branches: [ main ]\n\njobs:\n  test:\n    runs-on: ubuntu-latest\n    services:\n      postgres:\n        image: postgres:14\n        env:\n          POSTGRES_USER: postgres\n          POSTGRES_PASSWORD: postgres\n          POSTGRES_DB: thesis_grey_test\n        ports:\n          - 5432:5432\n        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5\n\n    steps:\n    - uses: actions/checkout@v3\n    - name: Set up Node.js\n      uses: actions/setup-node@v3\n      with:\n        node-version: '18'\n    - name: Install Wasp\n      run: curl -sSL https://get.wasp-lang.dev/installer.sh | bash\n    - name: Install dependencies\n      run: wasp deps\n    - name: Run tests\n      run: wasp test\n      env:\n        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/thesis_grey_test\n        JWT_SECRET: test-jwt-secret\n\n  deploy:\n    needs: test\n    if: github.ref == 'refs/heads/main'\n    runs-on: ubuntu-latest\n    steps:\n    - uses: actions/checkout@v3\n    - name: Set up Node.js\n      uses: actions/setup-node@v3\n      with:\n        node-version: '18'\n    - name: Install Wasp\n      run: curl -sSL https://get.wasp-lang.dev/installer.sh | bash\n    - name: Deploy to Fly.io\n      run: wasp deploy fly\n      env:\n        FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}\n```\n5. Create fly.toml for Fly.io deployment:\n```toml\n# fly.toml\napp = \"thesis-grey\"\n\n[build]\n  builder = \"dockerfile\"\n\n[env]\n  PORT = \"8080\"\n\n[http_service]\n  internal_port = 8080\n  force_https = true\n  auto_stop_machines = true\n  auto_start_machines = true\n  min_machines_running = 0\n```\n6. Create README.md with setup and deployment instructions:\n```markdown\n# Thesis Grey\n\nA specialised search application designed to facilitate the discovery and management of grey literature for clinical guideline development.\n\n## Development Setup\n\n1. Install Wasp CLI: `curl -sSL https://get.wasp-lang.dev/installer.sh | sh`\n2. Clone the repository: `git clone https://github.com/your-org/thesis-grey.git`\n3. Start PostgreSQL: `docker-compose up -d postgres`\n4. Copy .env.example to .env and update values\n5. Start the development server: `wasp start`\n\n## Deployment\n\n### Fly.io\n\n1. Install Fly CLI: `curl -L https://fly.io/install.sh | sh`\n2. Login to Fly: `fly auth login`\n3. Deploy: `wasp deploy fly`\n\n### Docker\n\n1. Build the Docker image: `docker build -t thesis-grey .`\n2. Run the container: `docker run -p 3001:3001 -e DATABASE_URL=... thesis-grey`\n```",
+      "testStrategy": "1. Test Docker build process in a clean environment\n2. Verify container starts correctly with proper environment variables\n3. Test deployment to Fly.io using a staging environment\n4. Validate GitHub Actions workflow with test pull requests\n5. Test database migrations in deployment process\n6. Verify environment variable handling in different environments\n7. Test application performance in containerized environment",
+      "subtasks": []
+    }
+  ]
+}

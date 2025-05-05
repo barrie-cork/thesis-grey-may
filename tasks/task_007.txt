@@ -1,0 +1,125 @@
+# Task ID: 7
+# Title: Develop Reporting & Export Feature
+# Status: pending
+# Dependencies: 6
+# Priority: medium
+# Description: Implement the reporting and export feature that generates PRISMA flow diagrams, basic statistics, and allows exporting results in CSV and JSON formats.
+# Details:
+1. Define routes and pages in main.wasp:
+```wasp
+route ReportingRoute { path: "/reporting/:sessionId", to: ReportingPage }
+page ReportingPage {
+  authRequired: true,
+  component: import { ReportingPage } from "@src/client/reporting/pages/ReportingPage"
+}
+```
+2. Implement server queries:
+```typescript
+// getReportData.js
+export const getReportData = async ({ sessionId }, context) => {
+  if (!context.user) { throw new HttpError(401) }
+  
+  // Get session details
+  const session = await context.entities.SearchSession.findUnique({
+    where: { id: sessionId },
+    include: {
+      searchQueries: true,
+      searchExecutions: true
+    }
+  });
+  
+  // Get processed results with tags
+  const results = await context.entities.ProcessedResult.findMany({
+    where: { sessionId },
+    include: {
+      reviewTags: {
+        include: { tag: true }
+      }
+    }
+  });
+  
+  // Calculate basic statistics
+  const stats = calculateStatistics(session, results);
+  
+  return {
+    session,
+    results,
+    stats
+  };
+};
+```
+3. Implement export action:
+```typescript
+// exportResults.js
+export const exportResults = async ({ sessionId, format }, context) => {
+  if (!context.user) { throw new HttpError(401) }
+  
+  // Get report data
+  const { session, results } = await getReportData({ sessionId }, context);
+  
+  // Format data based on requested format
+  if (format === 'csv') {
+    return generateCsvExport(session, results);
+  } else if (format === 'json') {
+    return generateJsonExport(session, results);
+  } else {
+    throw new HttpError(400, 'Unsupported export format');
+  }
+};
+```
+4. Implement helper functions:
+```typescript
+// Calculate basic statistics
+function calculateStatistics(session, results) {
+  const totalResults = results.length;
+  
+  // Count results by tag
+  const tagCounts = {};
+  results.forEach(result => {
+    result.reviewTags.forEach(assignment => {
+      const tagName = assignment.tag.name;
+      tagCounts[tagName] = (tagCounts[tagName] || 0) + 1;
+    });
+  });
+  
+  // Count results by domain
+  const domainCounts = {};
+  results.forEach(result => {
+    const domain = JSON.parse(result.metadata).domain;
+    domainCounts[domain] = (domainCounts[domain] || 0) + 1;
+  });
+  
+  return {
+    totalResults,
+    tagCounts,
+    domainCounts,
+    queriesCount: session.searchQueries.length,
+    executionsCount: session.searchExecutions.length
+  };
+}
+
+// Generate CSV export
+function generateCsvExport(session, results) {
+  // Implementation details for CSV generation
+}
+
+// Generate JSON export
+function generateJsonExport(session, results) {
+  // Implementation details for JSON generation
+}
+```
+5. Create React components for:
+   - PRISMA flow diagram visualization
+   - Statistics display
+   - Export options interface
+   - Report generation
+6. Implement basic PRISMA flow diagram generation using a charting library like Chart.js or D3.js
+
+# Test Strategy:
+1. Test report data generation and statistics calculation
+2. Verify CSV export functionality with various result sets
+3. Test JSON export functionality
+4. Validate PRISMA flow diagram generation
+5. Test with different session configurations and result counts
+6. Verify that exports contain all required data
+7. Test export with and without tags and notes

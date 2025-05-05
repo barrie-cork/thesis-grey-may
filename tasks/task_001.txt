@@ -1,0 +1,32 @@
+# Task ID: 1
+# Title: Initialize Wasp Project with PostgreSQL Database
+# Status: done
+# Dependencies: None
+# Priority: high
+# Description: Set up the initial Wasp project structure with PostgreSQL database configuration and implement the full database schema as defined in the PRD.
+# Details:
+1. Install Wasp CLI: `curl -sSL https://get.wasp-lang.dev/installer.sh | sh`
+2. Create new Wasp project: `wasp new thesis-grey`
+3. Configure PostgreSQL in main.wasp file:
+```wasp
+app ThesisGrey {
+  title: "Thesis Grey",
+  wasp: { version: "^0.16.0" },
+  db: {
+    system: PostgreSQL,
+    prisma: {
+      clientPreviewFeatures: ["extendedWhereUnique"]
+    }
+  }
+}
+```
+4. Implement the full database schema in schema.prisma file as specified in the PRD, including all models: User, SearchSession, SearchQuery, SearchExecution, RawSearchResult, ProcessedResult, DuplicateRelationship, ReviewTag, ReviewTagAssignment, ReviewAssignment, and Note.
+5. Set up the project structure following Vertical Slice Architecture (VSA) principles as outlined in the PRD.
+6. Create initial database migration: `wasp db migrate-dev`
+
+# Test Strategy:
+1. Verify that the Wasp project initializes without errors
+2. Confirm that the database schema is correctly implemented by checking the generated Prisma client
+3. Test database connection and migrations
+4. Validate that all models are correctly defined with proper relationships
+5. Ensure the project structure follows the VSA pattern defined in the PRD

@@ -1,0 +1,194 @@
+# Task ID: 10
+# Title: Configure Deployment Pipeline
+# Status: pending
+# Dependencies: 1, 2, 3, 4, 5, 6, 7, 8, 9
+# Priority: low
+# Description: Set up the deployment pipeline for the application, including Docker containerization and deployment configuration for development and production environments.
+# Details:
+1. Create Dockerfile for containerization:
+```dockerfile
+# Dockerfile
+FROM node:18-alpine AS builder
+
+WORKDIR /app
+
+# Install Wasp
+RUN apk add --no-cache curl bash
+RUN curl -sSL https://get.wasp-lang.dev/installer.sh | bash
+
+# Copy Wasp project files
+COPY main.wasp ./
+COPY src ./src
+COPY public ./public
+COPY migrations ./migrations
+
+# Build the Wasp project
+RUN wasp build
+
+# Production stage
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy built application from builder stage
+COPY --from=builder /app/.wasp/build .
+
+# Install production dependencies
+RUN cd server && npm install --production
+RUN cd client && npm install --production
+
+# Set environment variables
+ENV NODE_ENV=production
+
+# Expose ports
+EXPOSE 3001
+
+# Start the application
+CMD ["node", "server/src/server.js"]
+```
+2. Create docker-compose.yml for local development:
+```yaml
+# docker-compose.yml
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:14
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: thesis_grey
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
+```
+3. Create .env.example file:
+```
+# Database
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/thesis_grey
+
+# Authentication
+JWT_SECRET=your-jwt-secret-key
+
+# APIs
+SERPER_API_KEY=your-serper-api-key
+
+# Environment
+NODE_ENV=development
+```
+4. Create GitHub Actions workflow for CI/CD:
+```yaml
+# .github/workflows/ci-cd.yml
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: thesis_grey_test
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    - name: Install Wasp
+      run: curl -sSL https://get.wasp-lang.dev/installer.sh | bash
+    - name: Install dependencies
+      run: wasp deps
+    - name: Run tests
+      run: wasp test
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/thesis_grey_test
+        JWT_SECRET: test-jwt-secret
+
+  deploy:
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    - name: Install Wasp
+      run: curl -sSL https://get.wasp-lang.dev/installer.sh | bash
+    - name: Deploy to Fly.io
+      run: wasp deploy fly
+      env:
+        FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+```
+5. Create fly.toml for Fly.io deployment:
+```toml
+# fly.toml
+app = "thesis-grey"
+
+[build]
+  builder = "dockerfile"
+
+[env]
+  PORT = "8080"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+```
+6. Create README.md with setup and deployment instructions:
+```markdown
+# Thesis Grey
+
+A specialised search application designed to facilitate the discovery and management of grey literature for clinical guideline development.
+
+## Development Setup
+
+1. Install Wasp CLI: `curl -sSL https://get.wasp-lang.dev/installer.sh | sh`
+2. Clone the repository: `git clone https://github.com/your-org/thesis-grey.git`
+3. Start PostgreSQL: `docker-compose up -d postgres`
+4. Copy .env.example to .env and update values
+5. Start the development server: `wasp start`
+
+## Deployment
+
+### Fly.io
+
+1. Install Fly CLI: `curl -L https://fly.io/install.sh | sh`
+2. Login to Fly: `fly auth login`
+3. Deploy: `wasp deploy fly`
+
+### Docker
+
+1. Build the Docker image: `docker build -t thesis-grey .`
+2. Run the container: `docker run -p 3001:3001 -e DATABASE_URL=... thesis-grey`
+```
+
+# Test Strategy:
+1. Test Docker build process in a clean environment
+2. Verify container starts correctly with proper environment variables
+3. Test deployment to Fly.io using a staging environment
+4. Validate GitHub Actions workflow with test pull requests
+5. Test database migrations in deployment process
+6. Verify environment variable handling in different environments
+7. Test application performance in containerized environment

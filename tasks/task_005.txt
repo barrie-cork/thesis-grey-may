@@ -1,0 +1,131 @@
+# Task ID: 5
+# Title: Build Results Manager
+# Status: pending
+# Dependencies: 4
+# Priority: medium
+# Description: Develop the results manager feature that processes raw search results, normalizes data, extracts metadata, and provides filtering and sorting capabilities.
+# Details:
+1. Define routes and pages in main.wasp:
+```wasp
+route ResultsManagerRoute { path: "/results/:sessionId", to: ResultsManagerPage }
+page ResultsManagerPage {
+  authRequired: true,
+  component: import { ResultsManagerPage } from "@src/client/resultsManager/pages/ResultsManagerPage"
+}
+```
+2. Implement server queries:
+```typescript
+// getRawResults.js
+export const getRawResults = async ({ sessionId }, context) => {
+  if (!context.user) { throw new HttpError(401) }
+  
+  // Get all queries for this session
+  const queries = await context.entities.SearchQuery.findMany({
+    where: { sessionId },
+    select: { id: true }
+  });
+  
+  const queryIds = queries.map(q => q.id);
+  
+  // Get raw results for all queries in this session
+  return context.entities.RawSearchResult.findMany({
+    where: { queryId: { in: queryIds } }
+  });
+};
+
+// getProcessedResults.js
+export const getProcessedResults = async ({ sessionId }, context) => {
+  if (!context.user) { throw new HttpError(401) }
+  
+  return context.entities.ProcessedResult.findMany({
+    where: { sessionId },
+    include: {
+      rawSearchResult: true,
+      reviewTags: {
+        include: { tag: true }
+      }
+    }
+  });
+};
+```
+3. Implement processSessionResults action:
+```typescript
+// processSessionResults.js
+export const processSessionResults = async ({ sessionId }, context) => {
+  if (!context.user) { throw new HttpError(401) }
+  
+  // Get all raw results for this session
+  const rawResults = await getRawResults({ sessionId }, context);
+  
+  // Process each result
+  const processedResults = [];
+  for (const rawResult of rawResults) {
+    // Check if already processed
+    const existing = await context.entities.ProcessedResult.findFirst({
+      where: { rawResultId: rawResult.id }
+    });
+    
+    if (existing) continue;
+    
+    // Extract metadata
+    const metadata = extractMetadata(rawResult);
+    
+    // Create processed result
+    const processed = await context.entities.ProcessedResult.create({
+      data: {
+        rawResultId: rawResult.id,
+        sessionId,
+        title: rawResult.title,
+        url: normalizeUrl(rawResult.url),
+        snippet: rawResult.snippet,
+        metadata
+      }
+    });
+    
+    processedResults.push(processed);
+  }
+  
+  // Basic URL-based duplicate detection
+  await detectBasicDuplicates(context.entities, sessionId);
+  
+  return processedResults;
+};
+```
+4. Implement helper functions:
+```typescript
+// Extract basic metadata from raw result
+function extractMetadata(rawResult) {
+  const url = new URL(rawResult.url);
+  return {
+    domain: url.hostname,
+    fileType: getFileTypeFromUrl(rawResult.url),
+    searchEngine: rawResult.searchEngine,
+    rank: rawResult.rank
+  };
+}
+
+// Simple URL normalization
+function normalizeUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.origin + parsed.pathname;
+  } catch (e) {
+    return url;
+  }
+}
+```
+5. Create React components for:
+   - Results list view
+   - Filtering and sorting interface
+   - Result preview
+   - Metadata display
+   - Basic duplicate management
+
+# Test Strategy:
+1. Test raw result processing and normalization
+2. Verify URL normalization functionality
+3. Test metadata extraction from various result types
+4. Validate filtering and sorting capabilities
+5. Test result preview interface
+6. Verify basic duplicate detection
+7. Test with various result sizes and formats

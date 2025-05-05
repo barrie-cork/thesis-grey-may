@@ -1,0 +1,108 @@
+# Task ID: 6
+# Title: Implement Review Results Feature
+# Status: pending
+# Dependencies: 5
+# Priority: medium
+# Description: Develop the review results feature that allows researchers to tag, annotate, and review processed search results following PRISMA-compliant workflows.
+# Details:
+1. Define routes and pages in main.wasp:
+```wasp
+route ReviewRoute { path: "/review/:sessionId", to: ReviewPage }
+page ReviewPage {
+  authRequired: true,
+  component: import { ReviewPage } from "@src/client/reviewResults/pages/ReviewPage"
+}
+```
+2. Implement server queries:
+```typescript
+// getReviewTags.js
+export const getReviewTags = async ({ sessionId }, context) => {
+  if (!context.user) { throw new HttpError(401) }
+  
+  return context.entities.ReviewTag.findMany({
+    where: { sessionId }
+  });
+};
+
+// getResultsWithTags.js
+export const getResultsWithTags = async ({ sessionId }, context) => {
+  if (!context.user) { throw new HttpError(401) }
+  
+  return context.entities.ProcessedResult.findMany({
+    where: { sessionId },
+    include: {
+      rawSearchResult: true,
+      reviewTags: {
+        include: { tag: true }
+      },
+      notes: true
+    }
+  });
+};
+```
+3. Implement server actions:
+```typescript
+// createReviewTag.js
+export const createReviewTag = async ({ sessionId, name, color }, context) => {
+  if (!context.user) { throw new HttpError(401) }
+  
+  return context.entities.ReviewTag.create({
+    data: {
+      sessionId,
+      name,
+      color
+    }
+  });
+};
+
+// assignTag.js
+export const assignTag = async ({ resultId, tagId }, context) => {
+  if (!context.user) { throw new HttpError(401) }
+  
+  // Check if already assigned
+  const existing = await context.entities.ReviewTagAssignment.findFirst({
+    where: {
+      resultId,
+      tagId
+    }
+  });
+  
+  if (existing) return existing;
+  
+  return context.entities.ReviewTagAssignment.create({
+    data: {
+      resultId,
+      tagId
+    }
+  });
+};
+
+// createNote.js
+export const createNote = async ({ resultId, content }, context) => {
+  if (!context.user) { throw new HttpError(401) }
+  
+  return context.entities.Note.create({
+    data: {
+      resultId,
+      content
+    }
+  });
+};
+```
+4. Create React components for:
+   - Review interface with result details
+   - Tag management (create, assign, remove)
+   - Notes system
+   - Inclusion/exclusion tagging
+   - Progress tracking
+   - PRISMA-compliant workflow visualization
+5. Implement filtering by tag functionality
+
+# Test Strategy:
+1. Test tag creation, assignment, and removal
+2. Verify notes creation and retrieval
+3. Test inclusion/exclusion tagging workflow
+4. Validate progress tracking functionality
+5. Test filtering by tag
+6. Verify PRISMA-compliant workflow implementation
+7. Test with various result sets and tag combinations

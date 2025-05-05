@@ -1,0 +1,76 @@
+# Task ID: 3
+# Title: Develop Search Strategy Builder
+# Status: pending
+# Dependencies: 2
+# Priority: high
+# Description: Implement the search strategy builder feature that allows researchers to create and manage search sessions and queries with support for PICO framework.
+# Details:
+1. Define routes and pages in main.wasp:
+```wasp
+route SearchStrategyRoute { path: "/search-strategy", to: SearchStrategyPage }
+page SearchStrategyPage {
+  authRequired: true,
+  component: import { SearchStrategyPage } from "@src/client/searchStrategy/pages/SearchStrategyPage"
+}
+```
+2. Implement server queries:
+```typescript
+// getSearchSessions.js
+export const getSearchSessions = async (args, context) => {
+  if (!context.user) { throw new HttpError(401) }
+  return context.entities.SearchSession.findMany({
+    where: { userId: context.user.id },
+    orderBy: { createdAt: 'desc' }
+  });
+};
+
+// getSearchSession.js
+export const getSearchSession = async ({ id }, context) => {
+  if (!context.user) { throw new HttpError(401) }
+  return context.entities.SearchSession.findFirst({
+    where: { id, userId: context.user.id },
+    include: { searchQueries: true }
+  });
+};
+```
+3. Implement server actions:
+```typescript
+// createSearchSession.js
+export const createSearchSession = async ({ name, description }, context) => {
+  if (!context.user) { throw new HttpError(401) }
+  return context.entities.SearchSession.create({
+    data: {
+      name,
+      description,
+      userId: context.user.id
+    }
+  });
+};
+
+// createSearchQuery.js
+export const createSearchQuery = async ({ sessionId, query, description }, context) => {
+  if (!context.user) { throw new HttpError(401) }
+  return context.entities.SearchQuery.create({
+    data: {
+      query,
+      description,
+      sessionId
+    }
+  });
+};
+```
+4. Create React components for:
+   - Search session management
+   - PICO framework input (Population, Interest, Context)
+   - Domain selection
+   - File type filtering
+   - Query generation and preview
+5. Implement query generation logic that combines PICO elements into effective search strings
+
+# Test Strategy:
+1. Test creation, retrieval, and updating of search sessions
+2. Verify PICO framework implementation correctly structures search queries
+3. Test domain selection and file type filtering functionality
+4. Validate query generation logic produces expected search strings
+5. Test query preview functionality
+6. Verify that all operations respect user authentication and authorization

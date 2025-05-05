@@ -1,0 +1,114 @@
+# Task ID: 2
+# Title: Implement Authentication System
+# Status: pending
+# Dependencies: 1
+# Priority: high
+# Description: Implement the authentication system using Wasp's built-in authentication features, including user registration, login, and profile management.
+# Details:
+1. Configure authentication in main.wasp:
+```wasp
+app ThesisGrey {
+  auth: {
+    userEntity: User,
+    methods: {
+      usernameAndPassword: {},
+    },
+    onAuthFailedRedirectTo: "/login"
+  }
+}
+```
+2. Create login route and page:
+```wasp
+route LoginRoute { path: "/login", to: LoginPage }
+page LoginPage {
+  component: import { LoginPage } from "@src/client/auth/pages/LoginPage"
+}
+```
+3. Create signup route and page:
+```wasp
+route SignupRoute { path: "/signup", to: SignupPage }
+page SignupPage {
+  component: import { SignupPage } from "@src/client/auth/pages/SignupPage"
+}
+```
+4. Create profile route and page:
+```wasp
+route ProfileRoute { path: "/profile", to: ProfilePage }
+page ProfilePage {
+  authRequired: true,
+  component: import { ProfilePage } from "@src/client/auth/pages/ProfilePage"
+}
+```
+5. Implement React components for login, signup, and profile pages
+6. Add basic role-based permissions (Researcher role)
+7. Implement JWT-based authentication using Wasp's built-in system
+
+# Test Strategy:
+1. Test user registration flow with valid and invalid inputs
+2. Test login functionality with correct and incorrect credentials
+3. Verify JWT token generation and validation
+4. Test profile page access with and without authentication
+5. Verify that protected routes redirect unauthenticated users to login page
+6. Test basic role-based permissions
+
+# Subtasks:
+## 1. Create User Entity [completed]
+### Dependencies: None
+### Description: Define the User entity in the main.wasp file with necessary fields for authentication and user profile information.
+### Details:
+Create the User entity with fields like id, username, email, and any additional profile information. Ensure it's properly referenced in the auth configuration.
+
+## 2. Implement LoginPage Component [completed]
+### Dependencies: 2.1
+### Description: Create the React component for the login page using Wasp's Auth UI components.
+### Details:
+Implement the LoginPage.jsx component in @src/client/auth/pages/ directory. Use Wasp's built-in useAuth() hook and login form components.
+
+## 3. Implement SignupPage Component [completed]
+### Dependencies: 2.1
+### Description: Create the React component for the signup page using Wasp's Auth UI components.
+### Details:
+Implement the SignupPage.jsx component in @src/client/auth/pages/ directory. Include form validation for username, password, and any additional signup fields.
+
+## 4. Implement ProfilePage Component [completed]
+### Dependencies: 2.1, 2.2
+### Description: Create the React component for the user profile page with user information display and edit functionality.
+### Details:
+Implement the ProfilePage.jsx component in @src/client/auth/pages/ directory. Use context.user to access user data and create forms for updating profile information.
+
+## 5. Add Logout Functionality [completed]
+### Dependencies: 2.2, 2.4
+### Description: Implement logout button and functionality in the application.
+### Details:
+Add a logout button to the navigation bar or profile page. Use Wasp's built-in logout() action to handle the logout process.
+
+## 6. Implement Role-Based Authorization [completed]
+### Dependencies: 2.1, 2.4
+### Description: Implement role-based access control using the existing "researcher" role field.
+### Details:
+Users select a global role ('Researcher' or 'Admin') at signup, stored in `User.role`. For session-specific actions (reviewing, tagging), Phase 1 authorization relies on checking if the logged-in user's ID (`context.user.id`) matches the session creator's ID (`session.userId`), making the creator the implicit 'Lead Reviewer' for their own sessions. Defer explicit session roles and invitations to Phase 2.
+
+## 7. Create Protected Routes [completed]
+### Dependencies: 2.2, 2.3, 2.4
+### Description: Implement route protection for pages that require authentication.
+### Details:
+Add authRequired: true to all routes that should only be accessible to authenticated users. Create a redirect mechanism for unauthenticated users.
+
+## 8. Implement Password Reset Functionality [completed]
+### Dependencies: 2.2
+### Description: Add password reset capability to the authentication system.
+### Details:
+Create password reset request and confirmation pages. Implement the necessary backend logic to handle password reset tokens and updates.
+
+## 9. Add Additional Signup Fields [completed]
+### Dependencies: 2.3
+### Description: Extend the signup form with additional user profile fields (excluding role).
+### Details:
+Use defineAdditionalSignupFields (or similar mechanism if Wasp API changed) to add and validate extra profile fields during signup. The `role` field (Researcher/Admin) is handled separately via the dropdown added to the SignupPage component and validated by `userSignupFields.ts`. No other fields were deemed necessary for Phase 1 signup beyond email/password/role.
+
+## 10. Implement Authentication State Management [completed]
+### Dependencies: 2.2, 2.3, 2.5
+### Description: Create a global authentication state management system for the client application.
+### Details:
+Wasp's built-in useAuth() hook provides the necessary global auth context and state (user data, isLoading, error) for Phase 1 requirements. Components utilize this hook for managing state and handling loading/errors locally.
+
