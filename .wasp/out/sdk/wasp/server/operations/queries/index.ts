@@ -164,7 +164,6 @@ export const getSearchSession: AuthenticatedOperationFor<GetSearchSession_ext> =
       User: prisma.user,
       SearchSession: prisma.searchSession,
       SearchQuery: prisma.searchQuery,
-      ProcessedResult: prisma.processedResult,
     },
   )
 

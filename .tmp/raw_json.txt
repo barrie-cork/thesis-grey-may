@@ -1,0 +1,8 @@
+  "subtasks": [
+    {
+      "id": 16,
+      "title": "Set up Shadcn UI in the project",
+      "description": "Install and configure Shadcn UI components library with the appropriate styling options",
+      "dependencies": [],
+      "details": "Run the Shadcn UI CLI to initialize the library with slate as the base color and CSS variables for colors. Create the necessary configuration files and folder structure.",
+      "testStrategy": "Verify that the components.json file is created correctly a

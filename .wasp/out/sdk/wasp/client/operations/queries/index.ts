@@ -60,7 +60,7 @@ export const getSearchSessions: QueryFor<GetSearchSessions_ext> = createQuery<Ge
 // PUBLIC API
 export const getSearchSession: QueryFor<GetSearchSession_ext> = createQuery<GetSearchSession_ext>(
   'operations/get-search-session',
-  ['User', 'SearchSession', 'SearchQuery', 'ProcessedResult'],
+  ['User', 'SearchSession', 'SearchQuery'],
 )
 
 // PRIVATE API (used in SDK)

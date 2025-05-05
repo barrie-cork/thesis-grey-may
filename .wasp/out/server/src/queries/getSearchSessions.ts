@@ -1,6 +1,6 @@
 import { prisma } from 'wasp/server'
 
-import { getSearchSessions } from '../../../../../src/server/searchStrategy/queries.js'
+import { getSearchSessions } from '../../../../../src/server/searchStrategy/queries'
 
 
 export default async function (args, context) {

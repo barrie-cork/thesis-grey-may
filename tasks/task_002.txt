@@ -70,7 +70,7 @@ Implement the LoginPage.jsx component in @src/client/auth/pages/ directory. Use 
 ### Details:
 Implement the SignupPage.jsx component in @src/client/auth/pages/ directory. Include form validation for username, password, and any additional signup fields.
 
-## 4. Implement ProfilePage Component [completed]
+## 4. Implement ProfilePage Component [pending]
 ### Dependencies: 2.1, 2.2
 ### Description: Create the React component for the user profile page with user information display and edit functionality.
 ### Details:

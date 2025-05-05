@@ -18,9 +18,9 @@ alwaysApply: false
   ```
 
 - **File References:**
-  - Use `[filename](mdc:thesis-grey/path/to/file)` ([filename](mdc:thesis-grey/filename)) to reference files
-  - Example: [prisma.mdc](mdc:thesis-grey/.cursor/rules/prisma.mdc) for rule references
-  - Example: [schema.prisma](mdc:thesis-grey/prisma/schema.prisma) for code references
+  - Use `[filename](mdc:thesis-grey/thesis-grey/path/to/file)` ([filename](mdc:thesis-grey/thesis-grey/filename)) to reference files
+  - Example: [prisma.mdc](mdc:thesis-grey/thesis-grey/.cursor/rules/prisma.mdc) for rule references
+  - Example: [schema.prisma](mdc:thesis-grey/thesis-grey/prisma/schema.prisma) for code references
 
 - **Code Examples:**
   - Use language-specific code blocks

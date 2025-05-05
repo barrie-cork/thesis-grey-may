@@ -15,8 +15,6 @@ import { exportResults as exportResults_ext } from 'wasp/src/server/reporting/ac
 import { updateUserProfile as updateUserProfile_ext } from 'wasp/src/server/auth/actions'
 import { changePassword as changePassword_ext } from 'wasp/src/server/auth/actions'
 import { createSearchSession as createSearchSession_ext } from 'wasp/src/server/searchStrategy/actions'
-import { createSearchQuery as createSearchQuery_ext } from 'wasp/src/server/searchStrategy/actions'
-import { updateSearchQuery as updateSearchQuery_ext } from 'wasp/src/server/searchStrategy/actions'
 
 // PRIVATE API
 export type ExecuteSearchQuery_ext = typeof executeSearchQuery_ext
@@ -148,33 +146,5 @@ export const createSearchSession: AuthenticatedOperationFor<CreateSearchSession_
     {
       User: prisma.user,
       SearchSession: prisma.searchSession,
-    },
-  )
-
-// PRIVATE API
-export type CreateSearchQuery_ext = typeof createSearchQuery_ext
-
-// PUBLIC API
-export const createSearchQuery: AuthenticatedOperationFor<CreateSearchQuery_ext> =
-  createAuthenticatedOperation(
-    createSearchQuery_ext,
-    {
-      User: prisma.user,
-      SearchSession: prisma.searchSession,
-      SearchQuery: prisma.searchQuery,
-    },
-  )
-
-// PRIVATE API
-export type UpdateSearchQuery_ext = typeof updateSearchQuery_ext
-
-// PUBLIC API
-export const updateSearchQuery: AuthenticatedOperationFor<UpdateSearchQuery_ext> =
-  createAuthenticatedOperation(
-    updateSearchQuery_ext,
-    {
-      User: prisma.user,
-      SearchSession: prisma.searchSession,
-      SearchQuery: prisma.searchQuery,
     },
   )

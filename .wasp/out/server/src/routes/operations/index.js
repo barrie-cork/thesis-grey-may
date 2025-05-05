@@ -11,8 +11,6 @@ import exportResults from './exportResults.js'
 import updateUserProfile from './updateUserProfile.js'
 import changePassword from './changePassword.js'
 import createSearchSession from './createSearchSession.js'
-import createSearchQuery from './createSearchQuery.js'
-import updateSearchQuery from './updateSearchQuery.js'
 import getRawResults from './getRawResults.js'
 import getProcessedResults from './getProcessedResults.js'
 import getReviewTags from './getReviewTags.js'
@@ -34,8 +32,6 @@ router.post('/export-results', auth, exportResults)
 router.post('/update-user-profile', auth, updateUserProfile)
 router.post('/change-password', auth, changePassword)
 router.post('/create-search-session', auth, createSearchSession)
-router.post('/create-search-query', auth, createSearchQuery)
-router.post('/update-search-query', auth, updateSearchQuery)
 router.post('/get-raw-results', auth, getRawResults)
 router.post('/get-processed-results', auth, getProcessedResults)
 router.post('/get-review-tags', auth, getReviewTags)

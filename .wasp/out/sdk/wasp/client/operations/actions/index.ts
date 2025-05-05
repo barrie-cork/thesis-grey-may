@@ -8,8 +8,6 @@ import { ExportResults_ext } from 'wasp/server/operations/actions'
 import { UpdateUserProfile_ext } from 'wasp/server/operations/actions'
 import { ChangePassword_ext } from 'wasp/server/operations/actions'
 import { CreateSearchSession_ext } from 'wasp/server/operations/actions'
-import { CreateSearchQuery_ext } from 'wasp/server/operations/actions'
-import { UpdateSearchQuery_ext } from 'wasp/server/operations/actions'
 
 // PUBLIC API
 export const executeSearchQuery: ActionFor<ExecuteSearchQuery_ext> = createAction<ExecuteSearchQuery_ext>(
@@ -63,16 +61,4 @@ export const changePassword: ActionFor<ChangePassword_ext> = createAction<Change
 export const createSearchSession: ActionFor<CreateSearchSession_ext> = createAction<CreateSearchSession_ext>(
   'operations/create-search-session',
   ['User', 'SearchSession'],
-)
-
-// PUBLIC API
-export const createSearchQuery: ActionFor<CreateSearchQuery_ext> = createAction<CreateSearchQuery_ext>(
-  'operations/create-search-query',
-  ['User', 'SearchSession', 'SearchQuery'],
-)
-
-// PUBLIC API
-export const updateSearchQuery: ActionFor<UpdateSearchQuery_ext> = createAction<UpdateSearchQuery_ext>(
-  'operations/update-search-query',
-  ['User', 'SearchSession', 'SearchQuery'],
 )

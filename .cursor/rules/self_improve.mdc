@@ -39,7 +39,7 @@ alwaysApply: false
     where: { status: 'ACTIVE' }
   });
   
-  // Consider adding to [prisma.mdc](mdc:thesis-grey/.cursor/rules/prisma.mdc):
+  // Consider adding to [prisma.mdc](mdc:thesis-grey/thesis-grey/.cursor/rules/prisma.mdc):
   // - Standard select fields
   // - Common where conditions
   // - Performance optimization patterns
@@ -69,4 +69,4 @@ alwaysApply: false
   - Update references to external docs
   - Maintain links between related rules
   - Document breaking changes
-Follow [cursor_rules.mdc](mdc:thesis-grey/.cursor/rules/cursor_rules.mdc) for proper rule formatting and structure.
+Follow [cursor_rules.mdc](mdc:thesis-grey/thesis-grey/.cursor/rules/cursor_rules.mdc) for proper rule formatting and structure.

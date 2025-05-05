@@ -1199,105 +1199,6 @@ const createSearchSession$2 = async (args, context) => {
     throw new HttpError(500, "Failed to create search session");
   }
 };
-const createSearchQuery$2 = async (args, context) => {
-  if (!context.user) {
-    throw new HttpError(401, "Not authorized");
-  }
-  const { sessionId, query, description, queryType, structuredData } = args;
-  if (!sessionId) {
-    throw new HttpError(400, "Session ID is required");
-  }
-  if (!query || query.trim() === "") {
-    throw new HttpError(400, "Query string is required");
-  }
-  const session = await context.entities.SearchSession.findFirst({
-    where: {
-      id: sessionId,
-      // This is where we'll add team access in Phase 2
-      userId: context.user.id
-    }
-  });
-  if (!session) {
-    throw new HttpError(404, "Search session not found or access denied");
-  }
-  const data = {
-    query,
-    description,
-    sessionId
-  };
-  if (queryType) {
-    data.queryType = queryType;
-  }
-  if (structuredData) {
-    data.structuredData = structuredData;
-  }
-  try {
-    const newQuery = await context.entities.SearchQuery.create({
-      data,
-      select: {
-        id: true,
-        query: true,
-        description: true,
-        createdAt: true,
-        updatedAt: true,
-        sessionId: true
-      }
-    });
-    return newQuery;
-  } catch (error) {
-    console.error("Error creating search query:", error);
-    throw new HttpError(500, "Failed to create search query");
-  }
-};
-const updateSearchQuery$2 = async (args, context) => {
-  if (!context.user) {
-    throw new HttpError(401, "Not authorized");
-  }
-  const { id, query, description, queryType, structuredData } = args;
-  if (!id) {
-    throw new HttpError(400, "Query ID is required");
-  }
-  const existingQuery = await context.entities.SearchQuery.findFirst({
-    where: {
-      id,
-      searchSession: {
-        // This is where we'll add team access in Phase 2
-        userId: context.user.id
-      }
-    },
-    include: {
-      searchSession: true
-    }
-  });
-  if (!existingQuery) {
-    throw new HttpError(404, "Search query not found or access denied");
-  }
-  const data = {};
-  if (query !== void 0) data.query = query;
-  if (description !== void 0) data.description = description;
-  if (queryType !== void 0) data.queryType = queryType;
-  if (structuredData !== void 0) data.structuredData = structuredData;
-  try {
-    const updatedQuery = await context.entities.SearchQuery.update({
-      where: { id },
-      data,
-      select: {
-        id: true,
-        query: true,
-        description: true,
-        createdAt: true,
-        updatedAt: true,
-        sessionId: true,
-        queryType: true,
-        structuredData: true
-      }
-    });
-    return updatedQuery;
-  } catch (error) {
-    console.error("Error updating search query:", error);
-    throw new HttpError(500, "Failed to update search query");
-  }
-};
 
 async function createSearchSession$1(args, context) {
   return createSearchSession$2(args, {
@@ -1310,32 +1211,6 @@ async function createSearchSession$1(args, context) {
 }
 
 var createSearchSession = createAction(createSearchSession$1);
-
-async function createSearchQuery$1(args, context) {
-  return createSearchQuery$2(args, {
-    ...context,
-    entities: {
-      User: dbClient.user,
-      SearchSession: dbClient.searchSession,
-      SearchQuery: dbClient.searchQuery
-    }
-  });
-}
-
-var createSearchQuery = createAction(createSearchQuery$1);
-
-async function updateSearchQuery$1(args, context) {
-  return updateSearchQuery$2(args, {
-    ...context,
-    entities: {
-      User: dbClient.user,
-      SearchSession: dbClient.searchSession,
-      SearchQuery: dbClient.searchQuery
-    }
-  });
-}
-
-var updateSearchQuery = createAction(updateSearchQuery$1);
 
 const getRawResults$2 = async ({ sessionId, queryId }, context) => {
   if (!context.user) {
@@ -1905,8 +1780,7 @@ async function getSearchSession$1(args, context) {
     entities: {
       User: dbClient.user,
       SearchSession: dbClient.searchSession,
-      SearchQuery: dbClient.searchQuery,
-      ProcessedResult: dbClient.processedResult
+      SearchQuery: dbClient.searchQuery
     }
   });
 }
@@ -1923,8 +1797,6 @@ router$3.post("/export-results", auth, exportResults);
 router$3.post("/update-user-profile", auth, updateUserProfile);
 router$3.post("/change-password", auth, changePassword);
 router$3.post("/create-search-session", auth, createSearchSession);
-router$3.post("/create-search-query", auth, createSearchQuery);
-router$3.post("/update-search-query", auth, updateSearchQuery);
 router$3.post("/get-raw-results", auth, getRawResults);
 router$3.post("/get-processed-results", auth, getProcessedResults);
 router$3.post("/get-review-tags", auth, getReviewTags);

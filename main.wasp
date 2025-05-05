@@ -179,36 +179,35 @@ action assignUserRole {
 }
 */
 
-// --- Search Strategy Feature ---
-route SearchStrategyRoute { path: "/", to: SearchStrategyPage }
+// =================== Search Strategy ===================
+route SearchStrategyRoute { path: "/search-strategy", to: SearchStrategyPage }
 page SearchStrategyPage {
-  component: import { SearchStrategyPage } from "@src/client/searchStrategy/pages/SearchStrategyPage",
-  authRequired: true
+  authRequired: true,
+  component: import { SearchStrategyPage } from "@src/client/searchStrategy/pages/SearchStrategyPage"
 }
 
 query getSearchSessions {
-  fn: import { getSearchSessions } from "@src/server/searchStrategy/queries.js",
-  entities: [User, SearchSession, SearchQuery, ProcessedResult]
+  fn: import { getSearchSessions } from "@src/server/searchStrategy/queries",
+  entities: [User, SearchSession, SearchQuery, ProcessedResult] // Added entities needed for counts
 }
 
 action createSearchSession {
-  fn: import { createSearchSession } from "@src/server/searchStrategy/actions.js",
+  fn: import { createSearchSession } from "@src/server/searchStrategy/actions",
   entities: [User, SearchSession]
 }
 
 query getSearchSession {
-  fn: import { getSearchSession } from "@src/server/searchStrategy/queries.js",
-  entities: [User, SearchSession, SearchQuery, ProcessedResult]
+  fn: import { getSearchSession } from "@src/server/searchStrategy/queries",
+  entities: [User, SearchSession, SearchQuery] // Entities needed for the query
 }
 
-action createSearchQuery {
-  fn: import { createSearchQuery } from "@src/server/searchStrategy/actions.js",
-  entities: [User, SearchSession, SearchQuery]
+route SearchSessionDetailRoute { path: "/search-strategy/:sessionId", to: SearchSessionDetailPage }
+page SearchSessionDetailPage {
+  authRequired: true,
+  component: import { SearchSessionDetailPage } from "@src/client/searchStrategy/pages/SearchSessionDetailPage"
 }
 
-action updateSearchQuery {
-  fn: import { updateSearchQuery } from "@src/server/searchStrategy/actions.js",
-  entities: [User, SearchSession, SearchQuery]
-}
+// Add createSearchQuery action later when needed for detail page
+// =====================================================
 
 // (e.g., routes, pages, queries, actions for resultsManager, etc.)

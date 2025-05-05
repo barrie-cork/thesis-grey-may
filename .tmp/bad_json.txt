@@ -1,0 +1,13 @@
+    {
+      "id": 16,
+      "title": "Design Search Strategy Page Layout",
+      "description": "Create a wireframe and layout plan for the Search Strategy Builder page, ensuring clear separation of session management, PICO input, domain selection, file type filtering, and query preview sections.",
+      "dependencies": [3],
+      "details": "Use Shadcn UI's layout and container components to structure the page for usability and accessibility.",
+      "testStrategy": "Verify th
+[ERROR] Error during AI call or parsing for task 3: Failed to parse JSON response object: Unexpected token ',', ..."dencies": ,
+      "d"... is not valid JSON
+[ERROR] Error expanding task 3: Failed to parse JSON response object: Unexpected token ',', ..."dencies": ,
+      "d"... is not valid JSON
+Error expanding task 3: Failed to parse JSON response object: Unexpected token ',', ..."dencies": ,
+      "d"... is not valid JSON

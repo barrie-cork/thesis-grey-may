@@ -100,14 +100,27 @@ export const routes = {
       ),
   },
   SearchStrategyRoute: {
-    to: "/",
+    to: "/search-strategy",
     build: (
       options?:
       OptionalRouteOptions
     ) => interpolatePath(
         
-        "/",
+        "/search-strategy",
         undefined,
+        options?.search,
+        options?.hash
+      ),
+  },
+  SearchSessionDetailRoute: {
+    to: "/search-strategy/:sessionId",
+    build: (
+      options: OptionalRouteOptions
+      & { params: {"sessionId": ParamValue;}}
+    ) => interpolatePath(
+        
+        "/search-strategy/:sessionId",
+        options.params,
         options?.search,
         options?.hash
       ),

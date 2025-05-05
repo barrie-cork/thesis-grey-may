@@ -228,7 +228,7 @@
             "file",
             "../out/sdk/wasp/client/operations/actions/index.ts"
         ],
-        "3feff8fa34fbaa8aba9f0939eb821b3ec176ecff17cc7f971124651f6369b486"
+        "4cbb276c01f97db5e16091b3f8ff6476478e6d91b195a2c0cf0bed964b398410"
     ],
     [
         [
@@ -277,7 +277,7 @@
             "file",
             "../out/sdk/wasp/client/operations/queries/index.ts"
         ],
-        "814e17c5501e15388713c199e7c99071cee326a87d57e9480bb94a1231ed0cd0"
+        "70c06834311e18a3769a37cd8438a56ebd830095d8ad384036ffe17b71f59f54"
     ],
     [
         [
@@ -305,7 +305,7 @@
             "file",
             "../out/sdk/wasp/client/router/index.ts"
         ],
-        "3bf4d9ec475b1d02b9f1cf62560667edc59e2cdf5d7980a38cce8c0634569cdc"
+        "8248db6d958513cabb72a38f44945bf663e6c4fc53aa28becfbbd56f4c5be0b4"
     ],
     [
         [
@@ -501,35 +501,35 @@
             "file",
             "../out/sdk/wasp/server/operations/actions/index.ts"
         ],
-        "83383aa9ee0eba950c9c86f0b15510d5f4f75279b975df574f06db965b04bb1c"
+        "65ec317e5ac7154fcecbacc5e6c4c42ca434b4789967f34d0e44c6a3b2f8d624"
     ],
     [
         [
             "file",
             "../out/sdk/wasp/server/operations/actions/types.ts"
         ],
-        "e4aa2d557f3bd0021297b2bbcc2dda380d0b4aab4da0a8903e1241dce2333988"
+        "71945235e6f0d565459547feb227a583499a68c814e3b3f04f3b7e6a618a8399"
     ],
     [
         [
             "file",
             "../out/sdk/wasp/server/operations/index.ts"
         ],
-        "3994f70bbe6e3389ec0b8fcf7918d7b61983823baeed054165286594974bb244"
+        "d1927208227a929b68d8e5af659504e06d946ad0cac0f595d8da63956ce1db70"
     ],
     [
         [
             "file",
             "../out/sdk/wasp/server/operations/queries/index.ts"
         ],
-        "858e024d1252d16177dad5b8c1ee976854b88c7b8fcac61a134f06d6d5cd20c5"
+        "9dba5fc0209a36f87c0dfcf1ba91ca06d6883c6ea77bab9fd070006398fdf6f7"
     ],
     [
         [
             "file",
             "../out/sdk/wasp/server/operations/queries/types.ts"
         ],
-        "5de87d4c61cf958199a314c7baa2af47a1d46209063a3895ee3f19e623432f11"
+        "20ecf66c8fe59d8a53788330ce78c32fb0f6455798c8d1432f084686b1b1089d"
     ],
     [
         [
@@ -758,9 +758,16 @@
     [
         [
             "file",
+            "../out/sdk/wasp/src/client/searchStrategy/components/QueryBuilder/PICFrameworkInput.tsx"
+        ],
+        "c40c6f9041557d09e81ac4bd3256a23798d69296b76c95b23de3045a99937b80"
+    ],
+    [
+        [
+            "file",
             "../out/sdk/wasp/src/client/searchStrategy/components/SearchSessionList.tsx"
         ],
-        "4d38abac47cdd95541f613d33950684b8a4d276f363f8889a908375a6549df1e"
+        "0f86d6d89c8e31392ca95c94f2677ec8bd18c84dcd71d03137e52046c56b8834"
     ],
     [
         [
@@ -779,9 +786,16 @@
     [
         [
             "file",
+            "../out/sdk/wasp/src/client/searchStrategy/pages/SearchSessionDetailPage.tsx"
+        ],
+        "f0a3886b3aac813680b09508dd6e0728659b0eeeea4dfb31ee3ea6eb13ca5091"
+    ],
+    [
+        [
+            "file",
             "../out/sdk/wasp/src/client/searchStrategy/pages/SearchStrategyPage.tsx"
         ],
-        "c8358cfc7f1d9980330aa6d07b8ff7723079c1962d5fac006ea57f04525119e4"
+        "098cc26c466ad9b337e789a43cf36dd9cc03df0ae59ab53e849b4c61f21b4194"
     ],
     [
         [
@@ -823,7 +837,7 @@
             "file",
             "../out/sdk/wasp/src/client/shared/components/MainLayout.tsx"
         ],
-        "c6ceea215fc2628b95f8fa2a2227efc316696213e722f87bab5c9f7691904812"
+        "2d69b39b7223d9f769dbc9ec2d21f75dc561bb8db7233b8c7720677079e19817"
     ],
     [
         [
@@ -859,6 +873,13 @@
             "../out/sdk/wasp/src/client/shared/components/ui/input.tsx"
         ],
         "145fb3adb481b2ae53fa7879db0269767ea7c57d71d24a3afc4b99338c1cc275"
+    ],
+    [
+        [
+            "file",
+            "../out/sdk/wasp/src/client/shared/components/ui/label.tsx"
+        ],
+        "b4d709e2f0b56a3b4d3bd382c618d22b5cbf73fe704a1da49d6ef3099535ae28"
     ],
     [
         [
@@ -961,9 +982,23 @@
     [
         [
             "file",
+            "../out/sdk/wasp/src/server/searchStrategy/actions.ts"
+        ],
+        "01636adb7ee26cdb317bbcaf18b1d5d5a5da4229ef6efeef87d161eac2b340f3"
+    ],
+    [
+        [
+            "file",
             "../out/sdk/wasp/src/server/searchStrategy/queries.js"
         ],
         "08cb1a929c04150ebc687def9074ee7e85667b281718cb6c34c9f4464a575846"
+    ],
+    [
+        [
+            "file",
+            "../out/sdk/wasp/src/server/searchStrategy/queries.ts"
+        ],
+        "ad992a994390e6257f47355e347b96743eb14f359917a2db32b1a806ccfdf97c"
     ],
     [
         [
@@ -1131,7 +1166,7 @@
             "file",
             "server/.env"
         ],
-        "5c1c1dcc80f11aaf2f5c34ab9d44775b3e63a66150a8189fdf2ea956f05ede08"
+        "9e67c67ab7226313257bff98d09d072b5883207ce379f7a217b7fd55de66b274"
     ],
     [
         [
@@ -1206,16 +1241,9 @@
     [
         [
             "file",
-            "server/src/actions/createSearchQuery.ts"
-        ],
-        "7e9f7a6fcb6a000bc6b848c42972dd6fc6dd575c81d74f8f6e0c9b7cbf5d3655"
-    ],
-    [
-        [
-            "file",
             "server/src/actions/createSearchSession.ts"
         ],
-        "c2a47aef2520ee4d62ec05d2aa4e090765072d5c1d7b8c78ece2df99342ea840"
+        "4d95f2d2494aa61e1cd9229f6c724a67dd6c7695cbc3a9227f1869b08321efa9"
     ],
     [
         [
@@ -1237,13 +1265,6 @@
             "server/src/actions/processSessionResults.ts"
         ],
         "8e36eb97c19565454a75fd5e211362670a1b3b9593393f1e202b817e7678cd80"
-    ],
-    [
-        [
-            "file",
-            "server/src/actions/updateSearchQuery.ts"
-        ],
-        "3e397b261bd67c7735129df0f4e6bdfb9c3e7502e55041d90331f1e44fcdcab6"
     ],
     [
         [
@@ -1362,14 +1383,14 @@
             "file",
             "server/src/queries/getSearchSession.ts"
         ],
-        "a4d39096697ccf85cbe43dc9467eef269325e597e7cd64d5daba9bda54989037"
+        "e6be403b8f17a1b15ef9f8a6e4b310aa215ff0d3e454e5c8cb5d2d818986f82d"
     ],
     [
         [
             "file",
             "server/src/queries/getSearchSessions.ts"
         ],
-        "23391ed95cbb11a5ab649d943e3a96960fa64a90ba9b1d9a100ab4b89618e9f9"
+        "d9907931086bd688def2b11e06c1685ef0bf22a5cd3640a6f4d0e8c586846e88"
     ],
     [
         [
@@ -1440,13 +1461,6 @@
             "server/src/routes/operations/createReviewTag.js"
         ],
         "687d7f2ca92d1701896233a12f3375383bbdb0ce29132451d172638b1bd1fa17"
-    ],
-    [
-        [
-            "file",
-            "server/src/routes/operations/createSearchQuery.js"
-        ],
-        "84269d794ef4dad2524f9c9b4c2f8d1785209f8559312c1996a39e5211d70641"
     ],
     [
         [
@@ -1537,7 +1551,7 @@
             "file",
             "server/src/routes/operations/index.js"
         ],
-        "9d88a8fe3ff7a943c1bfb219a95c806918aceb090206f4a76094224f4e15f044"
+        "82861b4045a6512a74889b56a739aac9a2d2f5f97f4ed465b8080de0568aa264"
     ],
     [
         [
@@ -1545,13 +1559,6 @@
             "server/src/routes/operations/processSessionResults.js"
         ],
         "c91d3795b6cc752505e2b4df90379aa3678b4c3847c1f72231f7f9056571db16"
-    ],
-    [
-        [
-            "file",
-            "server/src/routes/operations/updateSearchQuery.js"
-        ],
-        "1c382ac025c10cee295285fd0a61a8d42c712d2cef55e7f231c32554de7c96ad"
     ],
     [
         [
@@ -1698,7 +1705,7 @@
             "file",
             "web-app/src/router.tsx"
         ],
-        "f34aae312e7afe036d9d8362d66b94677a4acaf17691579a4e9d3c4e3556f6c1"
+        "9105b33b78762a4901fbc326d1788be3af7156294245be2c136559fd2fd501be"
     ],
     [
         [

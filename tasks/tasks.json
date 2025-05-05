@@ -142,16 +142,161 @@
     },
     {
       "id": 3,
-      "title": "Develop Search Strategy Builder",
-      "description": "Implement the search strategy builder feature that allows researchers to create and manage search sessions and queries with support for PICO framework.",
-      "status": "pending",
+      "title": "Develop Search Strategy Builder with Shadcn UI",
+      "description": "Implement the search strategy builder feature that allows researchers to create and manage search sessions and queries with support for PIC framework using Shadcn UI components.",
+      "status": "in progress",
       "dependencies": [
         2
       ],
       "priority": "high",
-      "details": "1. Define routes and pages in main.wasp:\n```wasp\nroute SearchStrategyRoute { path: \"/search-strategy\", to: SearchStrategyPage }\npage SearchStrategyPage {\n  authRequired: true,\n  component: import { SearchStrategyPage } from \"@src/client/searchStrategy/pages/SearchStrategyPage\"\n}\n```\n2. Implement server queries:\n```typescript\n// getSearchSessions.js\nexport const getSearchSessions = async (args, context) => {\n  if (!context.user) { throw new HttpError(401) }\n  return context.entities.SearchSession.findMany({\n    where: { userId: context.user.id },\n    orderBy: { createdAt: 'desc' }\n  });\n};\n\n// getSearchSession.js\nexport const getSearchSession = async ({ id }, context) => {\n  if (!context.user) { throw new HttpError(401) }\n  return context.entities.SearchSession.findFirst({\n    where: { id, userId: context.user.id },\n    include: { searchQueries: true }\n  });\n};\n```\n3. Implement server actions:\n```typescript\n// createSearchSession.js\nexport const createSearchSession = async ({ name, description }, context) => {\n  if (!context.user) { throw new HttpError(401) }\n  return context.entities.SearchSession.create({\n    data: {\n      name,\n      description,\n      userId: context.user.id\n    }\n  });\n};\n\n// createSearchQuery.js\nexport const createSearchQuery = async ({ sessionId, query, description }, context) => {\n  if (!context.user) { throw new HttpError(401) }\n  return context.entities.SearchQuery.create({\n    data: {\n      query,\n      description,\n      sessionId\n    }\n  });\n};\n```\n4. Create React components for:\n   - Search session management\n   - PICO framework input (Population, Interest, Context)\n   - Domain selection\n   - File type filtering\n   - Query generation and preview\n5. Implement query generation logic that combines PICO elements into effective search strings",
-      "testStrategy": "1. Test creation, retrieval, and updating of search sessions\n2. Verify PICO framework implementation correctly structures search queries\n3. Test domain selection and file type filtering functionality\n4. Validate query generation logic produces expected search strings\n5. Test query preview functionality\n6. Verify that all operations respect user authentication and authorization",
-      "subtasks": []
+      "details": "1. Define routes/pages in main.wasp. 2. Implement getSearchSessions/getSearchSession queries. 3. Implement createSearchSession (implicit role)/createSearchQuery actions. 4. Create Shadcn UI components (session mgmt, PIC input, domain select, file type filter, query preview). 5. Implement query generation logic.",
+      "testStrategy": "Test session CRUD, PIC query structure, domain/file filters, query generation/preview, auth/authz (incl. implicit lead reviewer via ownership), UI responsiveness/accessibility.",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Create SearchStrategyPage component skeleton",
+          "description": "Create the basic structure for the SearchStrategyPage component with layout and navigation elements using Shadcn UI.",
+          "dependencies": [],
+          "details": "Create a new file at src/client/searchStrategy/pages/SearchStrategyPage.tsx. Implement a basic page structure with header, main content area, and navigation. Use Shadcn UI components like Card, Layout, and Tabs for the basic structure. Include placeholders for the search session list and creation form.",
+          "status": "completed",
+          "testStrategy": "Verify the component renders without errors and includes all necessary structural elements."
+        },
+        {
+          "id": 2,
+          "title": "Implement SearchSessionList component",
+          "description": "Create a component to display the list of search sessions with options to view, edit, and delete sessions using Shadcn UI.",
+          "dependencies": [1],
+          "details": "Create src/client/searchStrategy/components/SearchSessionList.tsx. Use Shadcn UI Table or Card components to display sessions with columns for name, description, created date, and actions. Implement pagination if needed. Add buttons for creating new sessions and managing existing ones.",
+          "status": "completed",
+          "testStrategy": "Test with various session data configurations, including empty state, single item, and multiple items. Verify all action buttons function correctly."
+        },
+        {
+          "id": 3,
+          "title": "Create SearchSessionForm component",
+          "description": "Implement a form for creating and editing search sessions with name and description fields using Shadcn UI form components.",
+          "dependencies": [1],
+          "details": "Create src/client/searchStrategy/components/SearchSessionForm.tsx. Use Shadcn UI Form components with validation. Include fields for session name and description. Implement form submission handling that will connect to the createSearchSession action.",
+          "status": "pending",
+          "testStrategy": "Test form validation for required fields. Verify form submission correctly calls the createSearchSession action with proper parameters."
+        },
+        {
+          "id": 4,
+          "title": "Implement PICFrameworkInput component",
+          "description": "Create a component for inputting search criteria using the PIC framework (Population, Interest, Context) with Shadcn UI.",
+          "dependencies": [1],
+          "details": "Create src/client/searchStrategy/components/QueryBuilder/PICFrameworkInput.tsx. Implement a multi-step form with separate sections for each PIC element. Use Shadcn UI Input, Textarea, Card, and Tabs components. Include help text explaining each PIC element. Store input values in state and provide methods to retrieve the complete PIC data.",
+          "status": "pending",
+          "testStrategy": "Test adding and removing terms for each PIC category. Verify the component provides proper validation and guidance for users."
+        },
+        {
+          "id": 5,
+          "title": "Create DomainSelector component",
+          "description": "Implement a component for selecting research domains or databases to search within using Shadcn UI.",
+          "dependencies": [1],
+          "details": "Create src/client/searchStrategy/components/QueryBuilder/DomainSelector.tsx. Use Shadcn UI Checkbox or Card components to allow selection of multiple domains (e.g., PubMed, WHO, NICE). Include domain descriptions and implement state management for selected domains.",
+          "status": "pending",
+          "testStrategy": "Test selecting and deselecting multiple domains. Verify the component correctly maintains the selection state."
+        },
+        {
+          "id": 6,
+          "title": "Implement FileTypeFilter component",
+          "description": "Create a component for filtering search results by file type (PDF, HTML, etc.) using Shadcn UI.",
+          "dependencies": [1],
+          "details": "Create src/client/searchStrategy/components/QueryBuilder/FileTypeFilter.tsx. Use Shadcn UI Checkbox components to allow selection of file types. Include common academic file types (PDF, HTML, DOC, etc.). Implement state management for selected file types.",
+          "status": "pending",
+          "testStrategy": "Test selecting and deselecting multiple file types. Verify the component correctly maintains the selection state."
+        },
+        {
+          "id": 7,
+          "title": "Create QueryGenerator service",
+          "description": "Implement a service to generate search queries based on PIC framework inputs and other filters.",
+          "dependencies": [4, 5, 6],
+          "details": "Create src/client/searchStrategy/services/queryGenerator.ts. Implement functions to combine PIC elements into effective search strings. Include logic for different search syntaxes. Support Boolean operators (AND, OR, NOT) and parentheses for complex queries. Create helper functions for formatting and sanitizing input.",
+          "status": "pending",
+          "testStrategy": "Test the query generation with various input combinations. Verify Boolean operators are correctly applied. Check for proper escaping of special characters."
+        },
+        {
+          "id": 8,
+          "title": "Implement QueryPreview component",
+          "description": "Create a component to display the generated search query with syntax highlighting and copy functionality using Shadcn UI.",
+          "dependencies": [7],
+          "details": "Create src/client/searchStrategy/components/QueryBuilder/QueryPreview.tsx. Use Shadcn UI Card and Button components to display the generated query. Implement syntax highlighting for search operators. Add a copy button to copy the query to clipboard. Include an explanation of the query structure.",
+          "status": "pending",
+          "testStrategy": "Test the preview component with various query strings. Verify the copy to clipboard functionality works correctly."
+        },
+        {
+          "id": 9,
+          "title": "Create SearchQueryForm component",
+          "description": "Implement a form for creating and saving search queries within a session using Shadcn UI.",
+          "dependencies": [3, 4, 5, 6, 7, 8],
+          "details": "Create src/client/searchStrategy/components/QueryBuilder/SearchQueryForm.tsx. Combine the PIC input, domain selector, and file type filter into a cohesive form. Use Shadcn UI Form components for structure. Include the query preview. Implement form submission that connects to the createSearchQuery action.",
+          "status": "pending",
+          "testStrategy": "Test the complete form flow from filling out PIC elements to saving the query. Verify the form's state management handles all edge cases."
+        },
+        {
+          "id": 10,
+          "title": "Implement custom hook for query building",
+          "description": "Create a custom hook to manage the complex state of the query builder.",
+          "dependencies": [4, 5, 6, 7],
+          "details": "Create src/client/searchStrategy/hooks/useQueryBuilder.ts. Implement a custom hook that handles state for all query builder components (PIC elements, domains, file types). Include methods for adding/removing terms and generating the preview query string.",
+          "status": "pending",
+          "testStrategy": "Test the hook with various state changes to ensure it correctly manages all aspects of the query builder state."
+        },
+        {
+          "id": 11,
+          "title": "Connect SearchSessionList to backend",
+          "description": "Integrate the SearchSessionList component with the getSearchSessions query to fetch and display real data.",
+          "dependencies": [2],
+          "details": "Update the SearchSessionList component to use the useQuery hook with getSearchSessions. Implement loading and error states. Add functionality to refresh the list when sessions are created or modified.",
+          "status": "completed",
+          "testStrategy": "Test the component with real backend data. Verify error handling and loading states. Test the refresh functionality after CRUD operations."
+        },
+        {
+          "id": 12,
+          "title": "Connect SearchSessionForm to backend",
+          "description": "Integrate the SearchSessionForm component with the createSearchSession action.",
+          "dependencies": [3, 11],
+          "details": "Update the SearchSessionForm component to use the useAction hook with createSearchSession. Implement loading and success states. Add form reset after successful submission. Update the parent component to refresh the session list after creation.",
+          "status": "pending",
+          "testStrategy": "Test the form submission process with the actual backend action. Verify the user is properly promoted to Lead Reviewer after session creation."
+        },
+        {
+          "id": 13,
+          "title": "Connect SearchQueryForm to backend",
+          "description": "Integrate the SearchQueryForm component with the createSearchQuery action.",
+          "dependencies": [9, 12],
+          "details": "Update the SearchQueryForm component to use the useAction hook with createSearchQuery. Implement loading and success states. Add form reset after successful submission. Update the parent component to refresh the query list after creation.",
+          "status": "pending",
+          "testStrategy": "Test the form submission process with the actual backend action. Verify the query is correctly saved to the database with all PIC elements and filters."
+        },
+        {
+          "id": 14,
+          "title": "Implement SearchSessionDetail page",
+          "description": "Create a detailed view page for a single search session with its queries using Shadcn UI.",
+          "dependencies": [11, 13],
+          "details": "Create src/client/searchStrategy/pages/SearchSessionDetail.tsx and add a corresponding route in main.wasp. Use the getSearchSession query to fetch session details. Display session metadata and the list of queries. Include options to add new queries and edit session details. Use Shadcn UI components for consistent styling.",
+          "status": "pending",
+          "testStrategy": "Test the detail page with different session data. Verify all functionality works correctly, including adding queries and editing session details."
+        },
+        {
+          "id": 15,
+          "title": "Update createSearchSession action for Lead Reviewer promotion",
+          "description": "Enhance the createSearchSession action to automatically promote users to Lead Reviewer role when they create a session. (Obsolete - Phase 1 uses implicit role based on ownership)",
+          "dependencies": [12],
+          "details": "Modify src/server/searchStrategy/actions.js to use a database transaction when creating a search session. Check if the user has the Researcher role and if so, update their role to Lead Reviewer in the same transaction. (Obsolete)",
+          "status": "obsolete",
+          "testStrategy": "Test with users having different roles to verify role promotion logic. Verify transaction atomicity ensures both operations (session creation and role update) succeed or fail together."
+        },
+        {
+          "id": 16,
+          "title": "Implement end-to-end integration and testing",
+          "description": "Integrate all components into a cohesive search strategy builder feature and perform comprehensive testing.",
+          "dependencies": [14, 15],
+          "details": "Connect all components into a complete workflow. Implement navigation between the session list and detail views. Test the full process from creating a session to adding queries. Add final styling and UI polish. Ensure responsive design works on different screen sizes. Add error handling for edge cases.",
+          "status": "pending",
+          "testStrategy": "Perform end-to-end testing of the complete feature. Test all possible user paths and edge cases. Verify accessibility compliance and responsive design on different screen sizes."
+        }
+      ]
     },
     {
       "id": 4,

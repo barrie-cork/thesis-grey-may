@@ -133,7 +133,6 @@ export type GetSearchSession<Input extends Payload = never, Output extends Paylo
       _User,
       _SearchSession,
       _SearchQuery,
-      _ProcessedResult,
     ],
     Input,
     Output

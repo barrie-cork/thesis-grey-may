@@ -128,27 +128,3 @@ export type CreateSearchSession<Input extends Payload = never, Output extends Pa
     Output
   >
 
-// PUBLIC API
-export type CreateSearchQuery<Input extends Payload = never, Output extends Payload = Payload> = 
-  AuthenticatedActionDefinition<
-    [
-      _User,
-      _SearchSession,
-      _SearchQuery,
-    ],
-    Input,
-    Output
-  >
-
-// PUBLIC API
-export type UpdateSearchQuery<Input extends Payload = never, Output extends Payload = Payload> = 
-  AuthenticatedActionDefinition<
-    [
-      _User,
-      _SearchSession,
-      _SearchQuery,
-    ],
-    Input,
-    Output
-  >
-

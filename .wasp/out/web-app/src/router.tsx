@@ -11,6 +11,7 @@ import { ResultsManagerPage } from '../../../../src/client/resultsManager/pages/
 import { ReviewPage } from '../../../../src/client/reviewResults/pages/ReviewPage'
 import { ReportingPage } from '../../../../src/client/reporting/pages/ReportingPage'
 import { SearchStrategyPage } from '../../../../src/client/searchStrategy/pages/SearchStrategyPage'
+import { SearchSessionDetailPage } from '../../../../src/client/searchStrategy/pages/SearchSessionDetailPage'
 
 
 import { DefaultRootErrorBoundary } from './components/DefaultRootErrorBoundary'
@@ -26,6 +27,7 @@ export const routeNameToRouteComponent = {
   ReviewRoute: createAuthRequiredPage(ReviewPage),
   ReportingRoute: createAuthRequiredPage(ReportingPage),
   SearchStrategyRoute: createAuthRequiredPage(SearchStrategyPage),
+  SearchSessionDetailRoute: createAuthRequiredPage(SearchSessionDetailPage),
 } as const;
 
 const waspDefinedRoutes = [

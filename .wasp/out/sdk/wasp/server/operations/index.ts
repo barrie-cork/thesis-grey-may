@@ -38,7 +38,3 @@ export { updateUserProfile } from './actions/index.js'
 export { changePassword } from './actions/index.js'
 
 export { createSearchSession } from './actions/index.js'
-
-export { createSearchQuery } from './actions/index.js'
-
-export { updateSearchQuery } from './actions/index.js'
