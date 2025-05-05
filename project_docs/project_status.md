@@ -2,7 +2,7 @@
 
 ## Current Status
 
-As of the latest update, the Thesis Grey project has been successfully implemented with Wasp v0.16.0 and follows the principles of Vertical Slice Architecture (VSA). **Task 2 (Implement Authentication System) is now complete.** This includes user signup (with Researcher/Admin role selection), email verification, login/logout, password reset, and protected routes based on the `authRequired` flag.
+As of the latest update, the Thesis Grey project has been successfully implemented with Wasp v0.16.0 and follows the principles of Vertical Slice Architecture (VSA). Task 2 (Implement Authentication System) is now complete using the standard **usernameAndPassword** method. This includes user signup (defaulting to Researcher role), login/logout, and protected routes. Email-specific flows like verification and password reset have been removed for Phase 1 simplicity.
 
 ## Core Architecture
 
@@ -39,11 +39,11 @@ feature/
 
 ### Feature Implementation
 - ✅ User authentication and profile management (Task 2 Completed):
-  - Signup (Email/Password/Role)
+  - Signup (Username/Password - Role defaulted to Researcher)
   - Login/Logout
-  - Email Verification
-  - Password Reset
   - Protected Routes (`authRequired: true`)
+  - Profile Page (view/edit email if present)
+- ✅ Implicit Lead Reviewer role assignment on session creation
 - ✅ Search strategy builder with session management
 - ✅ Search execution via Google Search API
 - ✅ Results processing and management
@@ -51,7 +51,7 @@ feature/
 - ✅ Basic reporting functionality
 
 ### UI Components
-- ✅ Authentication forms (updated for Wasp v0.16.0)
+- ✅ Authentication forms (using standard Wasp components)
 - ✅ Search session management
 - ✅ Results display
 - ✅ Tag management interface
@@ -64,10 +64,12 @@ feature/
 ## Recent Improvements
 
 ### Authentication System Updates
-- Updated the authentication system to match Wasp v0.16.0 API requirements
-- Fixed SignupForm component props to use `additionalFields` instead of `additionalSignupFields`
-- Updated auth hooks to match the new API signature
-- Implemented `userSignupFields` for proper user creation with required fields
+- Reverted authentication to use Wasp's standard `usernameAndPassword` method.
+- Simplified signup form to use default Wasp components.
+- Removed email verification and password reset flows for Phase 1.
+- Implemented `userSignupFields` for handling username and default role assignment.
+- Updated database schema (`username` required, `email` optional).
+- Implemented implicit Lead Reviewer role logic upon search session creation.
 
 ### SearchSession Query Fixes
 - Removed references to Phase 2 fields that aren't defined in the current schema

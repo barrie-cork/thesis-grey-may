@@ -35,5 +35,5 @@ export type {
 } from './hooks.js'
 
 
-export * from './email/index.js'
 
+export * from './username.js'

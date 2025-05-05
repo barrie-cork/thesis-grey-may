@@ -20,7 +20,7 @@ import type {
   FormState,
 } from '../../types'
 import { useNavigate } from 'react-router-dom'
-import { useEmail } from '../email/useEmail'
+import { useUsernameAndPassword } from '../usernameAndPassword/useUsernameAndPassword'
 
 
 // PRIVATE API
@@ -52,14 +52,10 @@ export const LoginSignupForm = ({
   };
   const hookForm = useForm<LoginSignupFormFields>()
   const { register, formState: { errors }, handleSubmit: hookFormHandleSubmit } = hookForm
-  const { handleSubmit } = useEmail({
+  const { handleSubmit } = useUsernameAndPassword({
     isLogin,
     onError: onErrorHandler,
-    showEmailVerificationPending() {
-      hookForm.reset()
-      setSuccessMessage(`You've signed up successfully! Check your email for the confirmation link.`)
-    },
-    onLoginSuccess() {
+    onSuccess() {
       navigate('/')
     },
   });
@@ -77,15 +73,15 @@ export const LoginSignupForm = ({
   return (<>
         <Form onSubmit={hookFormHandleSubmit(onSubmit)}>
           <FormItemGroup>
-            <FormLabel>E-mail</FormLabel>
+            <FormLabel>Username</FormLabel>
             <FormInput
-              {...register('email', {
-                required: 'Email is required',
+              {...register('username', {
+                required: 'Username is required',
               })}
-              type="email"
+              type="text"
               disabled={isLoading}
             />
-            {errors.email && <FormError>{errors.email.message}</FormError>}
+            {errors.username && <FormError>{errors.username.message}</FormError>}
           </FormItemGroup>
           <FormItemGroup>
             <FormLabel>Password</FormLabel>

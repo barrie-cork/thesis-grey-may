@@ -10,7 +10,10 @@ generator client {
 
 model User {
   id                 String              @id @default(uuid())
-  email              String              @unique
+  username           String              @unique
+  email              String?             @unique
+  password           String?
+  isEmailVerified    Boolean?
   role               String              @default("Researcher")
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt

@@ -15,7 +15,7 @@ export function LoginPage() {
         <CardHeader>
           <CardTitle className="text-2xl font-bold text-center">Sign in to your account</CardTitle>
           <CardDescription className="text-center">
-            Enter your email to access your account
+            Enter your username and password
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -27,11 +27,6 @@ export function LoginPage() {
             </Alert>
           )}
           <LoginForm />
-          <div className="mt-4 text-center">
-            <Link to="/request-password-reset" className="text-sm text-primary hover:text-primary/80">
-              Forgot your password?
-            </Link>
-          </div>
         </CardContent>
         <CardFooter className="flex justify-center">
           <p className="text-sm text-gray-600">

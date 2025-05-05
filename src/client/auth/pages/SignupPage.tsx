@@ -4,7 +4,6 @@ import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../../shared/components/ui/card';
 import { Alert, AlertDescription } from '../../shared/components/ui/alert';
 import { useAuth } from 'wasp/client/auth';
-import { FormItemGroup, FormLabel, FormError } from 'wasp/client/auth';
 
 export function SignupPage() {
   const { isLoading, error } = useAuth();
@@ -27,32 +26,7 @@ export function SignupPage() {
               </AlertDescription>
             </Alert>
           )}
-          <SignupForm 
-            additionalFields={[
-              (form, state) => {
-                return (
-                  <FormItemGroup>
-                    <FormLabel>Role</FormLabel>
-                    <select
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      defaultValue="Researcher"
-                      {...form.register('role', { required: 'Role is required' })}
-                      disabled={state.isLoading}
-                    >
-                      <option value="Researcher">Researcher</option>
-                      <option value="Lead Reviewer">Lead Reviewer</option>
-                      <option value="Admin">Admin</option>
-                    </select>
-                    {form.formState.errors.role && (
-                      <FormError>
-                        {form.formState.errors.role.message as string}
-                      </FormError>
-                    )}
-                  </FormItemGroup>
-                );
-              }
-            ]}
-          />
+          <SignupForm />
         </CardContent>
         <CardFooter className="flex justify-center">
           <p className="text-sm text-gray-600">

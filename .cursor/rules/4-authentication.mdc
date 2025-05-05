@@ -9,7 +9,7 @@ This document details how authentication is implemented and used within the Thes
 
 ## Authentication Setup in Thesis Grey
 
-Thesis Grey uses Wasp v0.16.0's built-in username/password authentication system:
+Thesis Grey uses Wasp v0.16.0's built-in **username/password** authentication system:
 
 ```wasp
 // In main.wasp
@@ -30,12 +30,12 @@ app ThesisGrey {
 
 The Thesis Grey authentication system consists of:
 
-- The `User` entity that stores user information
-- Login and signup pages with Wasp's authentication forms
-- Custom signup fields handling via `userSignupFields`
-- Validation via `onBeforeSignup` hook
-- Protected routes through the `authRequired: true` property
-- Authorization checks in server operations
+- The `User` entity storing username (required) and email (optional).
+- Login and signup pages using standard Wasp authentication forms.
+- Custom signup fields handling via `userSignupFields` (primarily for default role setting).
+- Validation via `onBeforeSignup` hook (e.g., for username uniqueness if not handled by Wasp).
+- Protected routes using the `authRequired: true` property.
+- Authorization checks in server operations.
 
 ## Authentication Implementation
 
@@ -47,28 +47,17 @@ import { UserSignupFields } from 'wasp/auth/providers/types';
 
 export const userSignupFields: UserSignupFields = {
   username: async (data: any) => {
-    // Ensure username exists and is valid
+    // Ensure username exists (Wasp also performs uniqueness check)
     if (!data.username) {
       throw new Error('Username is required');
     }
+    // Add any other custom username validation here
     return data.username;
   },
   role: async (data: any) => {
-    // Set default role or validate provided role
-    const validRoles = ['Researcher', 'Admin'];
-    
-    // Default to 'Researcher' if role is empty or not provided
-    const role = data.role ? data.role.trim() : 'Researcher';
-    
-    if (!role) {
-      return 'Researcher';
-    }
-    
-    if (!validRoles.includes(role)) {
-      throw new Error('Invalid role. Must be one of: ' + validRoles.join(', '));
-    }
-    
-    return role;
+    // Always default to Researcher for Phase 1 signup
+    // Role selection at signup is removed from the UI
+    return 'Researcher'; 
   }
 };
 ```
@@ -78,53 +67,34 @@ export const userSignupFields: UserSignupFields = {
 ```typescript
 // src/server/auth/hooks.ts
 import { OnBeforeSignupHook } from 'wasp/server/auth';
+import { HttpError } from 'wasp/server';
 
 export const onBeforeSignup: OnBeforeSignupHook = async ({ providerId, req, prisma }) => {
-  // In Wasp v0.16.0, this hook returns void and is only used for validation or preliminary checks
   console.log('Signup request received for provider ID:', providerId);
-  
-  // No return value needed (void)
+
+  // Optional: Explicitly check for existing username if needed,
+  // though Wasp's core logic should handle this for usernameAndPassword.
+  // if (providerId.providerName === 'username' && req.body?.username) {
+  //   const username = req.body.username;
+  //   const existingUser = await prisma.user.findUnique({ where: { username } });
+  //   if (existingUser) {
+  //     throw new HttpError(400, 'Validation failed: Username is already in use.');
+  //   }
+  // }
 };
 ```
 
 ## Role Configuration
 
-Thesis Grey implements a role-based authorization system with two primary roles:
+Phase 1 implements a simplified role system:
 
-1. **Researcher** - The default role assigned to regular users
-2. **Admin** - Role with elevated privileges for administrative tasks
+1.  **Researcher (Global Role):** Assigned to all users by default upon signup. Stored in `User.role`. Users with this role can create search strategies.
+2.  **Admin (Global Role):** Can be manually assigned in the database or potentially via a future admin interface (Phase 2). Admins have elevated privileges.
+3.  **Lead Reviewer (Implicit, Session-Specific):** When a user (Researcher or Admin) creates a `SearchSession`, they become the implicit Lead Reviewer for that session, identified by `SearchSession.userId == context.user.id`. Only they can manage/review results for that session in Phase 1.
 
-Role validation is enforced in both the frontend and backend:
-
-- Frontend: The signup form includes a select dropdown with valid role options
-- Backend: The `userSignupFields` handler validates that the role is one of the allowed values
-
-### Role Selection in Signup Form
-
-```tsx
-// Role selection implemented using a render function for the additionalFields prop
-(form, state) => {
-  return (
-    <FormItemGroup>
-      <FormLabel>Role</FormLabel>
-      <select
-        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-        defaultValue="Researcher"
-        {...form.register('role', { required: 'Role is required' })}
-        disabled={state.isLoading}
-      >
-        <option value="Researcher">Researcher</option>
-        <option value="Admin">Admin</option>
-      </select>
-      {form.formState.errors.role && (
-        <FormError>
-          {form.formState.errors.role.message as string}
-        </FormError>
-      )}
-    </FormItemGroup>
-  );
-}
-```
+**Signup Form:**
+- The Role dropdown has been **removed** from the signup form for Phase 1.
+- All users default to the "Researcher" role upon signup, handled by `userSignupFields.ts`.
 
 ## Authentication Pages
 
@@ -133,26 +103,43 @@ Role validation is enforced in both the frontend and backend:
 ```tsx
 // src/client/auth/pages/LoginPage.tsx
 import React from 'react';
-import { LoginForm } from 'wasp/client/auth';
+import { LoginForm } from 'wasp/client/auth'; // Uses standard Wasp form
 import { Link } from 'react-router-dom';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../../shared/components/ui/card';
+import { Alert, AlertDescription } from '../../shared/components/ui/alert';
+import { useAuth } from 'wasp/client/auth';
 
 export function LoginPage() {
+  const { isLoading, error } = useAuth();
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Sign in to your account
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Or{' '}
-            <Link to="/signup" className="font-medium text-blue-600 hover:text-blue-500">
-              create a new account
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold text-center">Sign in to your account</CardTitle>
+          <CardDescription className="text-center">
+            Enter your username and password
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {(error) && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertDescription>
+                Authentication failed. Please check your credentials.
+              </AlertDescription>
+            </Alert>
+          )}
+          <LoginForm />
+          {/* Password reset link removed - not available for username/password auth in Phase 1 */}
+        </CardContent>
+        <CardFooter className="flex justify-center">
+          <p className="text-sm text-gray-600">
+            Don't have an account?{' '}
+            <Link to="/signup" className="font-medium text-primary hover:text-primary/80">
+              Create a new account
             </Link>
           </p>
-        </div>
-        <LoginForm />
-      </div>
+        </CardFooter>
+      </Card>
     </div>
   );
 }
@@ -163,17 +150,14 @@ export function LoginPage() {
 ```tsx
 // src/client/auth/pages/SignupPage.tsx
 import React, { useState } from 'react';
-import { SignupForm } from 'wasp/client/auth';
+import { SignupForm } from 'wasp/client/auth'; // Uses standard Wasp form
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../../shared/components/ui/card';
 import { Alert, AlertDescription } from '../../shared/components/ui/alert';
 import { useAuth } from 'wasp/client/auth';
-import { FormItemGroup, FormLabel, FormError } from 'wasp/client/auth';
 
 export function SignupPage() {
   const { isLoading, error } = useAuth();
-  const [formError, setFormError] = useState<string | null>(null);
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
       <Card className="w-full max-w-md">
@@ -184,45 +168,18 @@ export function SignupPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {(error || formError) && (
+          {(error) && (
             <Alert variant="destructive" className="mb-4">
               <AlertDescription>
-                {error ? 'Signup failed. Please check your information and try again.' : formError}
+                Signup failed. Please check your information and try again.
               </AlertDescription>
             </Alert>
           )}
           <SignupForm 
             additionalFields={[
-              {
-                name: 'username',
-                label: 'Username',
-                type: 'input',
-                validations: {
-                  required: 'Username is required'
-                }
-              },
-              // Role selection dropdown
-              (form, state) => {
-                return (
-                  <FormItemGroup>
-                    <FormLabel>Role</FormLabel>
-                    <select
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      defaultValue="Researcher"
-                      {...form.register('role', { required: 'Role is required' })}
-                      disabled={state.isLoading}
-                    >
-                      <option value="Researcher">Researcher</option>
-                      <option value="Admin">Admin</option>
-                    </select>
-                    {form.formState.errors.role && (
-                      <FormError>
-                        {form.formState.errors.role.message as string}
-                      </FormError>
-                    )}
-                  </FormItemGroup>
-                );
-              }
+              // Username field is handled by the standard form
+              // We only need to add fields NOT already included by default
+              // No additional fields needed for Phase 1 beyond default username/password
             ]}
           />
         </CardContent>
@@ -251,9 +208,9 @@ page SearchStrategyPage {
   component: import { SearchStrategyPage } from "@src/client/searchStrategy/pages/SearchStrategyPage"
 }
 
-page SearchExecutionPage {
+page ProfilePage {
   authRequired: true,
-  component: import { SearchExecutionPage } from "@src/client/serpExecution/pages/SearchExecutionPage"
+  component: import { ProfilePage } from "@src/client/auth/pages/ProfilePage"
 }
 
 // ... other protected pages
@@ -279,7 +236,8 @@ export function ProfilePage() {
       <h1 className="text-2xl font-bold mb-6">Your Profile</h1>
       <div className="mb-4">
         <p className="text-gray-700 mb-2"><strong>Username:</strong> {user.username}</p>
-        <p className="text-gray-700 mb-2"><strong>Email:</strong> {user.email}</p>
+        <p className="text-gray-700 mb-2"><strong>Email:</strong> {user.email || 'Not provided'}</p>
+        <p className="text-gray-700 mb-2"><strong>Role:</strong> {user.role}</p>
       </div>
       <button 
         onClick={logout}
@@ -300,6 +258,7 @@ All Thesis Grey operations incorporate consistent authorization checks using the
 // Example authorization pattern in operations
 import { HttpError } from 'wasp/server';
 import { type GetSearchSession } from 'wasp/server/operations';
+import { ROLES, isSessionOwnerOrAdmin } from '../auth/authorization.js'; // Assuming authorization utils
 
 export const getSearchSession = (async (args, context) => {
   // 1. Check if user is authenticated
@@ -309,19 +268,24 @@ export const getSearchSession = (async (args, context) => {
   
   try {
     // 2. Fetch the requested resource
-    const session = await context.entities.SearchSession.findFirst({
-      where: {
-        id: args.id,
-        userId: context.user.id
-      }
+    const session = await context.entities.SearchSession.findUnique({
+      where: { id: args.id },
     });
     
     // 3. Verify resource exists
     if (!session) {
-      throw new HttpError(404, "Search session not found or access denied");
+      throw new HttpError(404, "Search session not found");
     }
     
-    // 4. Proceed with operation
+    // 4. Check if user owns the session (Phase 1 check)
+    if (session.userId !== context.user.id) {
+       // Optional: Allow Admins access too
+       // if (context.user.role !== ROLES.ADMIN) {
+           throw new HttpError(403, "Access denied");
+       // }
+    }
+    
+    // 5. Proceed with operation
     return session;
   } catch (error) {
     // Re-throw HttpError instances
@@ -337,14 +301,13 @@ export const getSearchSession = (async (args, context) => {
 
 ## Authentication Best Practices in Thesis Grey
 
-1. **Never Skip Auth Checks**: Every server operation must verify authentication and authorization
-2. **Protected Routes**: Always use `authRequired: true` for pages that should be accessible only to logged-in users
-3. **User-Specific Data**: Always filter queries by the current user's ID to ensure data isolation
-4. **Clean Error Messages**: Provide clear but not overly detailed error messages for security
-5. **Handle Loading States**: Always handle loading and error states in components using authentication data
-6. **Type Safety**: Use the `satisfies` operator to ensure proper typing of server operations
-7. **Proper Field Handling**: Use `userSignupFields` to process and validate custom fields during signup
-8. **Validation Hooks**: Use `onBeforeSignup` for validation or preliminary checks before user creation
-9. **Consistent Role Validation**: Ensure roles are validated both on the client side (dropdown options) and server side (userSignupFields)
+1. **Never Skip Auth Checks**: Every server operation must verify authentication and authorization.
+2. **Protected Routes**: Always use `authRequired: true` for pages that should be accessible only to logged-in users.
+3. **User-Specific Data**: Always filter queries by the current user's ID or check ownership (`session.userId === context.user.id`) before returning/modifying data.
+4. **Clean Error Messages**: Provide clear but not overly detailed error messages for security.
+5. **Handle Loading States**: Always handle loading and error states in components using authentication data.
+6. **Type Safety**: Use the `satisfies` operator to ensure proper typing of server operations.
+7. **Default Role Handling**: Use `userSignupFields` to enforce default role assignment during signup.
+8. **Consistent Authorization Logic**: Use helper functions (like those in `authorization.js`) for reusable role and ownership checks in server operations.
 
 These patterns ensure that Thesis Grey maintains a secure authentication model throughout the application.

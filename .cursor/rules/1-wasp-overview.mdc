@@ -80,5 +80,5 @@ This document covers the fundamental concepts of the Thesis Grey application, bu
 ### Deployment
 
 - Thesis Grey can be deployed to Fly.io using the Wasp deployment command.
-- Use get-library-docs mcp to See the [Wasp Deployment Docs](mdc:thesis-grey/thesis-grey/thesis-grey/thesis-grey/thesis-grey/thesis-grey/thesis-grey/thesis-grey/thesis-grey/thesis-grey/thesis-grey/https:/wasp-lang.com/docs/advanced/deployment) for details.
+- Use get-library-docs mcp to See the [Wasp Deployment Docs](mdc:thesis-grey/thesis-grey/thesis-grey/thesis-grey/thesis-grey/thesis-grey/thesis-grey/thesis-grey/thesis-grey/thesis-grey/thesis-grey/thesis-grey/https:/wasp-lang.com/docs/advanced/deployment) for details.
 - For Fly.io deployment instructions, see rule `8-deployment`. 

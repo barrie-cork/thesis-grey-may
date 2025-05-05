@@ -141,4 +141,8 @@ node_modules/
 .DS_Store
 # Task files
 tasks.json
-tasks/ 
+tasks/
+
+# Specific sensitive files
+copy.env # Backup environment files
+.env.bak

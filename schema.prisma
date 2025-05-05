@@ -17,7 +17,10 @@ datasource db {
 
 model User {
   id                 String            @id @default(uuid())
-  email              String            @unique
+  username           String            @unique // Added back for username/password auth
+  email              String?           @unique // Made optional again
+  password           String?           // Added by Wasp for username/password auth
+  isEmailVerified    Boolean?          // Added by Wasp for email auth (can be removed if unused)
   role               String            @default("Researcher") // Role-based authorization
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt

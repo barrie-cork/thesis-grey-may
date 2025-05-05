@@ -26,9 +26,18 @@ Phase 2 will utilize the same database schema as Phase 1, now leveraging previou
 // Enhanced User model with roles
 model User {
   // Existing fields from Phase 1...
+  id                 String            @id @default(uuid())
+  username           String            @unique // Used for login
+  email              String?           @unique // Optional
+  password           String?           // Hashed password (managed by Wasp)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  searchSessions     SearchSession[]
+  reviewAssignments  ReviewAssignment[]
+  sessionMemberships SessionMembership[]
   
-  // New fields for Phase 2
-  role              String            @default("researcher") // researcher, reviewer, admin
+  // Phase 2 fields
+  role              String            @default("Researcher") // Global role: researcher, admin (reviewer is session-specific)
   organizationId    String?
   organization      Organization?     @relation(fields: [organizationId], references: [id])
   teams             TeamMembership[]
@@ -244,16 +253,14 @@ app ThesisGrey {
   auth: {
     userEntity: User,
     methods: {
-      usernameAndPassword: {},
+      usernameAndPassword: { // Retain username/password from Phase 1
+        userSignupFields: import { userSignupFields } from "@src/server/auth/userSignupFields.ts"
+      },
       google: {}, // Added in Phase 2
+      // Email auth could be re-added here if desired
     },
     onAuthFailedRedirectTo: "/login",
-    roles: {
-      // Added in Phase 2
-      researcher: {},
-      reviewer: {},
-      admin: {}
-    }
+    // Roles are managed via User.role and SessionMembership, not directly in auth config
   }
 }
 
@@ -261,21 +268,34 @@ app ThesisGrey {
 route AdminRoute { path: "/admin", to: AdminPage }
 page AdminPage {
   authRequired: true,
-  role: "admin",
-  component: import { AdminPage } from "@src/client/auth/pages/AdminPage"
+  // Role check would happen within the AdminPage component or its queries/actions
+  component: import { AdminPage } from "@src/client/admin/pages/AdminPage"
 }
 ```
 
 **Phase 2 Enhancements:**
-- Multiple role types (Researcher, Reviewer, Admin)
 - Organization-based access control
-- Team collaboration features
-- Enhanced security features
-- OAuth integrations (Google)
-- Role-based authorization
+- Team collaboration features (inviting Reviewers to sessions)
+- Enhanced security features (e.g., MFA - future consideration)
+- OAuth integrations (e.g., Google)
+- Admin dashboard for user/role management
 
 **Role Assignment in Phase 2:**
-Users continue to receive the "Researcher" role by default at signup (no user selection required), with the ability for administrators to assign the "Admin" role. The "Reviewer" role is dynamically assigned when a Lead Reviewer (the creator of a search strategy) invites another user to review search results. This context-based role assignment aligns with the collaborative review workflow where a Lead Reviewer manages the review process while multiple Reviewers can tag and annotate results independently.
+Phase 2 expands on the Phase 1 roles:
+1.  **Global Roles (Researcher/Admin):** The `User.role` field continues to store the user's primary role, assigned at signup (Researcher) or by an Admin.
+2.  **Session Roles (LeadReviewer/Reviewer):** The `SessionMembership` table now explicitly tracks roles *within* a specific `SearchSession`.
+    *   When a user creates a session, a `SessionMembership` record is created linking them to the session with the role "LeadReviewer".
+    *   Lead Reviewers can invite other users (Researchers or Admins) to a session. When an invitation is accepted, a `SessionMembership` record is created linking the invited user to the session with the role "Reviewer".
+    *   Authorization checks for session-specific actions now query the `SessionMembership` table to verify the user's role for that session.
+
+**Collaborative Review Workflow in Phase 2:**
+Phase 2 enables collaborative review:
+1.  The creator of a `SearchSession` is automatically assigned the "LeadReviewer" role for that session via `SessionMembership`.
+2.  The Lead Reviewer can invite other users (who have a global "Researcher" or "Admin" role) to collaborate.
+3.  Invited users are assigned the "Reviewer" role for that specific session via `SessionMembership`.
+4.  Lead Reviewers and Reviewers can independently tag and annotate results.
+5.  The system detects and flags conflicts (e.g., differing inclusion/exclusion tags) between reviewers.
+6.  The Lead Reviewer has the authority to resolve conflicts.
 
 ### 2. Search Strategy Builder (Enhancements)
 
@@ -454,18 +474,6 @@ action createCustomTag {
 - Citation management
 - Bulk review operations
 - Review progress tracking
-
-**Collaborative Review Workflow in Phase 2:**
-Phase 2 extends the review process to support a collaborative workflow with multiple reviewers:
-
-1. The creator of a search strategy (default "Researcher" role) automatically becomes the Lead Reviewer for that session
-2. The Lead Reviewer can invite other users to join as Reviewers for specific search sessions
-3. When invited, users gain the "Reviewer" role contextually for that session while maintaining their default "Researcher" role systemwide
-4. Lead Reviewers and Reviewers independently tag and annotate results
-5. The system tracks conflicts between reviewers' tagging decisions
-6. The Lead Reviewer can review conflicts and make final determinations
-
-This contextual role assignment means that a user can be a Lead Reviewer for sessions they create and a Reviewer for sessions they're invited to, with appropriate permissions for each context.
 
 ### 6. Reporting & Export (Enhancements)
 

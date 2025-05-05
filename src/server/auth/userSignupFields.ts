@@ -1,19 +1,13 @@
 import { UserSignupFields } from 'wasp/auth/providers/types';
 
 export const userSignupFields: UserSignupFields = {
-  email: async (data: any) => {
-    // Ensure email exists and is valid
-    if (!data.email) {
-      throw new Error('Email is required');
+  username: async (data: any) => {
+    // Ensure username exists
+    if (!data.username) {
+      throw new Error('Username is required');
     }
-    
-    // Validate email format
-    const emailRegex = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
-    if (!emailRegex.test(data.email)) {
-      throw new Error('Invalid email format');
-    }
-    
-    return data.email;
+    // Add any other username validation if needed
+    return data.username;
   },
   role: async (data: any) => {
     // Only allow Researcher or Admin selection at signup for Phase 1

@@ -40,15 +40,15 @@ app ThesisGrey {
 // User and Authentication
 model User {
   id                 String            @id @default(uuid())
-  username           String            @unique
-  email              String?           @unique
-  password           String            // Hashed password
-  role               String            @default("researcher") // Default role
+  username           String            @unique // Used for login
+  email              String?           @unique // Optional
+  password           String?           // Hashed password (managed by Wasp)
+  role               String            @default("Researcher") // Default global role
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
   searchSessions     SearchSession[]
-  reviewAssignments  ReviewAssignment[]
-  sessionMemberships SessionMembership[]
+  reviewAssignments  ReviewAssignment[] // Simplified for Phase 1
+  sessionMemberships SessionMembership[] // Added for Phase 2 compatibility
 }
 
 // Search Session
@@ -58,13 +58,13 @@ model SearchSession {
   description       String?
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
-  userId            String
+  userId            String            // ID of the creator (Implicit Lead Reviewer)
   user              User              @relation(fields: [userId], references: [id])
   searchQueries     SearchQuery[]
   searchExecutions  SearchExecution[]
   processedResults  ProcessedResult[]
   reviewTags        ReviewTag[]
-  members           SessionMembership[]
+  members           SessionMembership[] // Added for Phase 2 compatibility
 }
 
 // Search Query
@@ -278,9 +278,12 @@ app ThesisGrey {
   auth: {
     userEntity: User,
     methods: {
-      usernameAndPassword: {},
+      usernameAndPassword: { // Using username/password auth
+        userSignupFields: import { userSignupFields } from "@src/server/auth/userSignupFields.ts"
+      }
     },
-    onAuthFailedRedirectTo: "/login"
+    onAuthFailedRedirectTo: "/login",
+    onBeforeSignup: import { onBeforeSignup } from "@src/server/auth/hooks.ts"
   }
 }
 
@@ -299,19 +302,23 @@ page ProfilePage {
   authRequired: true,
   component: import { ProfilePage } from "@src/client/auth/pages/ProfilePage"
 }
+
+// Removed email verification/password reset routes for Phase 1
 ```
 
 **Requirements:**
-- User registration and login
-- Profile management
-- JWT-based authentication
-- Basic role-based permissions (User selects Researcher or Admin at signup)
-- Integration with Wasp authentication system
+- [x] User registration with username and password
+- [x] User login functionality
+- [x] Protected routes with auth redirects (`authRequired: true`)
+- [x] User profile management (basic display/update email)
+- [x] JWT-based authentication
+- [x] Proper authentication configuration in main.wasp
 
 **Role Assignment in Phase 1:**
-Phase 1 implements a two-tiered role system:
-1.  **Global Role (Researcher/Admin):** Users select either "Researcher" or "Admin" during signup. This role defines their general capabilities within the application.
-2.  **Implicit Lead Reviewer:** When a user (regardless of their global role) creates a `SearchSession`, they automatically become the implicit "Lead Reviewer" *for that specific session*. This is determined by matching the logged-in user's ID with the `SearchSession.userId` field. In Phase 1, only the creator/Lead Reviewer can manage and review results within their own session.
+Phase 1 implements a simplified role system:
+1.  **Researcher (Global Role):** Assigned to all users by default upon signup via `userSignupFields.ts`. Stored in `User.role`.
+2.  **Admin (Global Role):** Can be manually assigned in the database post-signup for Phase 1. Admins have elevated privileges (exact privileges TBD based on feature implementation).
+3.  **Implicit Lead Reviewer:** When a user (Researcher or Admin) creates a `SearchSession`, they automatically become the implicit "Lead Reviewer" *for that specific session*. This is determined by matching the logged-in user's ID with the `SearchSession.userId` field. In Phase 1, only the creator/Lead Reviewer can manage and review results within their own session.
 
 The concept of inviting other users as "Reviewers" and explicit session-level roles using the `SessionMembership` table is deferred to Phase 2.
 

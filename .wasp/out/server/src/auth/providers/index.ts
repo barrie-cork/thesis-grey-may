@@ -1,9 +1,9 @@
 import { Router } from "express";
 
-import email from './config/email.js'
+import username from './config/username.js'
 
 const providers = [
-  email,
+  username,
 ];
 
 const router = Router();
