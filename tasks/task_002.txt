@@ -1,6 +1,6 @@
 # Task ID: 2
 # Title: Implement Authentication System
-# Status: pending
+# Status: completed
 # Dependencies: 1
 # Priority: high
 # Description: Implement the authentication system using Wasp's built-in authentication features, including user registration, login, and profile management.
