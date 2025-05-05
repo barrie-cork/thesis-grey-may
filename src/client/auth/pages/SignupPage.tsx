@@ -1,28 +1,68 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { SignupForm } from 'wasp/client/auth';
 import { Link } from 'react-router-dom';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../../shared/components/ui/card';
+import { Alert, AlertDescription } from '../../shared/components/ui/alert';
+import { useAuth } from 'wasp/client/auth';
+import { FormItemGroup, FormLabel, FormError } from 'wasp/client/auth';
 
 export function SignupPage() {
+  const { isLoading, error } = useAuth();
+  const [formError, setFormError] = useState<string | null>(null);
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Create a new account
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Or{' '}
-            <Link to="/login" className="font-medium text-blue-600 hover:text-blue-500">
-              sign in to your existing account
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold text-center">Create a new account</CardTitle>
+          <CardDescription className="text-center">
+            Fill in the details below to sign up
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {(error || formError) && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertDescription>
+                {error ? 'Signup failed. Please check your information and try again.' : formError}
+              </AlertDescription>
+            </Alert>
+          )}
+          <SignupForm 
+            additionalFields={[
+              (form, state) => {
+                return (
+                  <FormItemGroup>
+                    <FormLabel>Role</FormLabel>
+                    <select
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      defaultValue="Researcher"
+                      {...form.register('role', { required: 'Role is required' })}
+                      disabled={state.isLoading}
+                    >
+                      <option value="Researcher">Researcher</option>
+                      <option value="Lead Reviewer">Lead Reviewer</option>
+                      <option value="Admin">Admin</option>
+                    </select>
+                    {form.formState.errors.role && (
+                      <FormError>
+                        {form.formState.errors.role.message as string}
+                      </FormError>
+                    )}
+                  </FormItemGroup>
+                );
+              }
+            ]}
+          />
+        </CardContent>
+        <CardFooter className="flex justify-center">
+          <p className="text-sm text-gray-600">
+            Already have an account?{' '}
+            <Link to="/login" className="font-medium text-primary hover:text-primary/80">
+              Sign in to your account
             </Link>
           </p>
-        </div>
-        <div className="mt-8">
-          <SignupForm 
-            additionalFields={[]}
-          />
-        </div>
-      </div>
+        </CardFooter>
+      </Card>
     </div>
   );
 } 

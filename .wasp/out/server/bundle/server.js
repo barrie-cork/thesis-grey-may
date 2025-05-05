@@ -11,6 +11,8 @@ import cookieParser from 'cookie-parser';
 import logger from 'morgan';
 import cors from 'cors';
 import helmet from 'helmet';
+import * as jwt from 'oslo/jwt';
+import { TimeSpan } from 'oslo';
 import { webcrypto } from 'node:crypto';
 
 const redColor = "\x1B[31m";
@@ -88,6 +90,7 @@ const allowedCORSOriginsPerEnv = {
 };
 const allowedCORSOrigins = allowedCORSOriginsPerEnv[env.NODE_ENV];
 const config$1 = {
+  frontendUrl,
   allowedCORSOrigins,
   env: env.NODE_ENV,
   isDevelopment: env.NODE_ENV === "development",
@@ -127,6 +130,7 @@ const handleRejection = (middleware) => async (req, res, next) => {
     next(error);
   }
 };
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const prismaAdapter = new PrismaAdapter(dbClient.session, dbClient.auth);
 const auth$1 = new Lucia(prismaAdapter, {
@@ -168,10 +172,12 @@ function normalizePassword(password) {
 }
 
 const PASSWORD_FIELD = "password";
-const USERNAME_FIELD = "username";
-function ensureValidUsername(args) {
+const EMAIL_FIELD = "email";
+const TOKEN_FIELD = "token";
+function ensureValidEmail(args) {
   validate(args, [
-    { validates: USERNAME_FIELD, message: "username must be present", validator: (username) => !!username }
+    { validates: EMAIL_FIELD, message: "email must be present", validator: (email) => !!email },
+    { validates: EMAIL_FIELD, message: "email must be a valid email", validator: (email) => isValidEmail$1(email) }
   ]);
 }
 function ensurePasswordIsPresent(args) {
@@ -185,6 +191,11 @@ function ensureValidPassword(args) {
     { validates: PASSWORD_FIELD, message: "password must contain a number", validator: (password) => containsNumber(password) }
   ]);
 }
+function ensureTokenIsPresent(args) {
+  validate(args, [
+    { validates: TOKEN_FIELD, message: "token must be present", validator: (token) => !!token }
+  ]);
+}
 function throwValidationError(message) {
   throw new HttpError(422, "Validation failed", { message });
 }
@@ -194,6 +205,13 @@ function validate(args, validators) {
       throwValidationError(message);
     }
   }
+}
+const validEmailRegex = /(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9]))\.){3}(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])/;
+function isValidEmail$1(input) {
+  if (typeof input !== "string") {
+    return false;
+  }
+  return input.match(validEmailRegex) !== null;
 }
 function isMinLength(input, minLength) {
   if (typeof input !== "string") {
@@ -237,6 +255,17 @@ async function findAuthIdentity(providerId) {
     }
   });
 }
+async function updateAuthIdentityProviderData(providerId, existingProviderData, providerDataUpdates) {
+  const sanitizedProviderDataUpdates = await ensurePasswordIsHashed(providerDataUpdates);
+  const newProviderData = Object.assign(Object.assign({}, existingProviderData), sanitizedProviderDataUpdates);
+  const serializedProviderData = await serializeProviderData(newProviderData);
+  return dbClient.authIdentity.update({
+    where: {
+      providerName_providerUserId: providerId
+    },
+    data: { providerData: serializedProviderData }
+  });
+}
 async function findAuthWithUserBy(where) {
   const result = await dbClient.auth.findFirst({ where, include: { user: true } });
   if (result === null) {
@@ -266,6 +295,15 @@ async function createUser(providerId, serializedProviderData, userFields) {
       auth: true
     }
   });
+}
+async function deleteUserByAuthId(authId) {
+  return dbClient.user.deleteMany({ where: { auth: {
+    id: authId
+  } } });
+}
+async function doFakeWork() {
+  const timeToWork = Math.floor(Math.random() * 1e3) + 1e3;
+  return sleep(timeToWork);
 }
 function rethrowPossibleAuthError(e) {
   if (e instanceof Prisma$1.PrismaClientKnownRequestError && e.code === "P2002") {
@@ -365,7 +403,7 @@ function createAuthUserData(user) {
 This should never happen, but it did which means there is a bug in the code.`);
   }
   const identities = {
-    username: getProviderInfo(auth, "username")
+    email: getProviderInfo(auth, "email")
   };
   return Object.assign(Object.assign({}, rest), { identities });
 }
@@ -473,9 +511,42 @@ function createAction(handlerFn) {
   return createOperation(handlerFn);
 }
 
-const executeSearchQuery$2 = async ({ queryId, maxResults = 100 }, context) => {
+const ROLES = {
+  ADMIN: "Admin",
+  LEAD_REVIEWER: "Lead Reviewer",
+  RESEARCHER: "Researcher"
+};
+const ROLE_HIERARCHY = {
+  [ROLES.ADMIN]: [ROLES.LEAD_REVIEWER, ROLES.RESEARCHER],
+  [ROLES.LEAD_REVIEWER]: [ROLES.RESEARCHER],
+  [ROLES.RESEARCHER]: []
+};
+const hasRole = (user, role) => {
+  if (!user) return false;
+  if (user.role === role) return true;
+  return ROLE_HIERARCHY[user.role]?.includes(role) || false;
+};
+const hasAnyRole = (user, roles) => {
+  if (!user || !roles.length) return false;
+  return roles.some((role) => hasRole(user, role));
+};
+const requireAnyRole = (user, roles, message = `One of these roles required: ${roles.join(", ")}`) => {
+  if (!user) {
+    throw new HttpError(401, "Authentication required");
+  }
+  if (!hasAnyRole(user, roles)) {
+    throw new HttpError(403, message);
+  }
+};
+
+const executeSearchQuery$2 = async (args, context) => {
   if (!context.user) {
     throw new HttpError(401, "Unauthorized");
+  }
+  requireAnyRole(context.user, ["Lead Reviewer", "Admin"], "Only Lead Reviewers and Admins can execute searches");
+  const { queryId, maxResults = 100 } = args;
+  if (!queryId) {
+    throw new HttpError(400, "Query ID is required");
   }
   try {
     const query = await context.entities.SearchQuery.findUnique({
@@ -718,6 +789,7 @@ const createReviewTag$2 = async ({ sessionId, name, color }, context) => {
   if (!context.user) {
     throw new HttpError(401, "Unauthorized");
   }
+  requireAnyRole(context.user, ["Lead Reviewer", "Admin"], "Only Lead Reviewers and Admins can create review tags");
   try {
     const session = await context.entities.SearchSession.findUnique({
       where: { id: sessionId }
@@ -1136,15 +1208,28 @@ const createSearchSession$2 = async (args, context) => {
     data.teamId = teamId;
   }
   try {
-    const newSession = await context.entities.SearchSession.create({
-      data,
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        createdAt: true,
-        updatedAt: true
+    const prisma = context.entities._prisma;
+    const [newSession, updatedUser] = await prisma.$transaction(async (tx) => {
+      const session = await tx.searchSession.create({
+        data,
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          createdAt: true,
+          updatedAt: true
+        }
+      });
+      let user = null;
+      if (context.user.role === "Researcher") {
+        user = await tx.user.update({
+          where: { id: context.user.id },
+          data: { role: ROLES.LEAD_REVIEWER },
+          select: { id: true, role: true }
+        });
+        console.log(`User ${context.user.id} promoted to Lead Reviewer`);
       }
+      return [session, user];
     });
     return newSession;
   } catch (error) {
@@ -1923,6 +2008,10 @@ var logout = handleRejection(async (req, res) => {
 
 const onBeforeSignup = async ({ providerId, req, prisma }) => {
   console.log("Signup request received for provider ID:", providerId);
+  const userData = req.body;
+  if (userData.role && userData.role !== "Researcher") {
+    console.log(`User requesting non-default role: ${userData.role}`);
+  }
 };
 
 const onBeforeSignupHook = (params) => onBeforeSignup({
@@ -1936,65 +2025,187 @@ const onBeforeLoginHook = async (_params) => {
 const onAfterLoginHook = async (_params) => {
 };
 
-var login = handleRejection(async (req, res) => {
-  const fields = req.body ?? {};
-  ensureValidArgs$1(fields);
-  const providerId = createProviderId("username", fields.username);
-  const authIdentity = await findAuthIdentity(providerId);
-  if (!authIdentity) {
-    throw createInvalidCredentialsError();
-  }
-  try {
+function getLoginRoute() {
+  return async function login(req, res) {
+    const fields = req.body ?? {};
+    ensureValidArgs$2(fields);
+    const providerId = createProviderId("email", fields.email);
+    const authIdentity = await findAuthIdentity(providerId);
+    if (!authIdentity) {
+      throw createInvalidCredentialsError();
+    }
     const providerData = getProviderDataWithPassword(authIdentity.providerData);
-    await verifyPassword(providerData.hashedPassword, fields.password);
-  } catch (e) {
-    throw createInvalidCredentialsError();
-  }
-  const auth = await findAuthWithUserBy({
-    id: authIdentity.authId
-  });
-  if (auth === null) {
-    throw createInvalidCredentialsError();
-  }
-  await onBeforeLoginHook({
-    req,
-    providerId,
-    user: auth.user
-  });
-  const session = await createSession(auth.id);
-  await onAfterLoginHook({
-    req,
-    providerId,
-    user: auth.user
-  });
-  return res.json({
-    sessionId: session.id
-  });
-});
-function ensureValidArgs$1(args) {
-  ensureValidUsername(args);
+    if (!providerData.isEmailVerified) {
+      throw createInvalidCredentialsError();
+    }
+    try {
+      await verifyPassword(providerData.hashedPassword, fields.password);
+    } catch (e) {
+      throw createInvalidCredentialsError();
+    }
+    const auth = await findAuthWithUserBy({ id: authIdentity.authId });
+    if (auth === null) {
+      throw createInvalidCredentialsError();
+    }
+    await onBeforeLoginHook({
+      user: auth.user
+    });
+    const session = await createSession(auth.id);
+    await onAfterLoginHook({
+      user: auth.user
+    });
+    return res.json({
+      sessionId: session.id
+    });
+  };
+}
+function ensureValidArgs$2(args) {
+  ensureValidEmail(args);
   ensurePasswordIsPresent(args);
 }
 
+const JWT_SECRET = new TextEncoder().encode(config$1.auth.jwtSecret);
+const JWT_ALGORITHM = "HS256";
+function createJWT(data, options) {
+  return jwt.createJWT(JWT_ALGORITHM, JWT_SECRET, data, options);
+}
+async function validateJWT(token) {
+  const { payload } = await jwt.validateJWT(JWT_ALGORITHM, JWT_SECRET, token);
+  return payload;
+}
+
+function getDefaultFromField() {
+  return {
+    email: "",
+    name: ""
+  };
+}
+
+const yellowColor = "\x1B[33m%s\x1B[0m";
+function initDummyEmailSender(config) {
+  const defaultFromField = getDefaultFromField();
+  return {
+    send: async (email) => {
+      const fromField = email.from || defaultFromField;
+      console.log(yellowColor, "\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557");
+      console.log(yellowColor, "\u2551 Dummy email sender \u2709\uFE0F  \u2551");
+      console.log(yellowColor, "\u255A\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255D");
+      console.log(`From:    ${fromField.name} <${fromField.email}>`);
+      console.log(`To:      ${email.to}`);
+      console.log(`Subject: ${email.subject}`);
+      console.log(yellowColor, "\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 Text \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550");
+      console.log(email.text);
+      console.log(yellowColor, "\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 HTML \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550");
+      console.log(email.html);
+      console.log(yellowColor, "\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550");
+      return {
+        success: true
+      };
+    }
+  };
+}
+
+const emailSender = initDummyEmailSender();
+
+async function createEmailVerificationLink(email, clientRoute) {
+  const { jwtToken } = await createEmailJWT(email);
+  return `${config$1.frontendUrl}${clientRoute}?token=${jwtToken}`;
+}
+async function createPasswordResetLink(email, clientRoute) {
+  const { jwtToken } = await createEmailJWT(email);
+  return `${config$1.frontendUrl}${clientRoute}?token=${jwtToken}`;
+}
+async function createEmailJWT(email) {
+  const jwtToken = await createJWT({ email }, { expiresIn: new TimeSpan(30, "m") });
+  return { jwtToken };
+}
+async function sendPasswordResetEmail(email, content) {
+  return sendEmailAndSaveMetadata(email, content, {
+    passwordResetSentAt: (/* @__PURE__ */ new Date()).toISOString()
+  });
+}
+async function sendEmailVerificationEmail(email, content) {
+  return sendEmailAndSaveMetadata(email, content, {
+    emailVerificationSentAt: (/* @__PURE__ */ new Date()).toISOString()
+  });
+}
+async function sendEmailAndSaveMetadata(email, content, metadata) {
+  const providerId = createProviderId("email", email);
+  const authIdentity = await findAuthIdentity(providerId);
+  if (!authIdentity) {
+    throw new Error(`User with email: ${email} not found.`);
+  }
+  const providerData = getProviderDataWithPassword(authIdentity.providerData);
+  await updateAuthIdentityProviderData(providerId, providerData, metadata);
+  emailSender.send(content).catch((e) => {
+    console.error("Failed to send email", e);
+  });
+}
+function isEmailResendAllowed(fields, field, resendInterval = 1e3 * 60) {
+  const sentAt = fields[field];
+  if (!sentAt) {
+    return {
+      isResendAllowed: true,
+      timeLeft: 0
+    };
+  }
+  const now = /* @__PURE__ */ new Date();
+  const diff = now.getTime() - new Date(sentAt).getTime();
+  const isResendAllowed = diff > resendInterval;
+  const timeLeft = isResendAllowed ? 0 : Math.round((resendInterval - diff) / 1e3);
+  return { isResendAllowed, timeLeft };
+}
+
 function getSignupRoute({
-  userSignupFields
+  userSignupFields,
+  fromField,
+  clientRoute,
+  getVerificationEmailContent,
+  isEmailAutoVerified
 }) {
-  return handleRejection(async function signup(req, res) {
-    const fields = req.body ?? {};
-    ensureValidArgs(fields);
-    const userFields = await validateAndGetUserFields(
-      fields,
-      userSignupFields
+  return async function signup(req, res) {
+    const fields = req.body;
+    ensureValidArgs$1(fields);
+    const providerId = createProviderId("email", fields.email);
+    const existingAuthIdentity = await findAuthIdentity(providerId);
+    if (existingAuthIdentity) {
+      const providerData = getProviderDataWithPassword(
+        existingAuthIdentity.providerData
+      );
+      if (providerData.isEmailVerified) {
+        await doFakeWork();
+        return res.json({ success: true });
+      }
+      const { isResendAllowed, timeLeft } = isEmailResendAllowed(
+        providerData,
+        "passwordResetSentAt"
+      );
+      if (!isResendAllowed) {
+        throw new HttpError(
+          400,
+          `Please wait ${timeLeft} secs before trying again.`
+        );
+      }
+      try {
+        await deleteUserByAuthId(existingAuthIdentity.authId);
+      } catch (e) {
+        rethrowPossibleAuthError(e);
+      }
+    }
+    const userFields = await validateAndGetUserFields(fields, userSignupFields);
+    const newUserProviderData = await sanitizeAndSerializeProviderData(
+      {
+        hashedPassword: fields.password,
+        isEmailVerified: isEmailAutoVerified ? true : false,
+        emailVerificationSentAt: null,
+        passwordResetSentAt: null
+      }
     );
-    const providerId = createProviderId("username", fields.username);
-    const providerData = await sanitizeAndSerializeProviderData({
-      hashedPassword: fields.password
-    });
     try {
       await onBeforeSignupHook({ req, providerId });
       const user = await createUser(
         providerId,
-        providerData,
+        newUserProviderData,
         // Using any here because we want to avoid TypeScript errors and
         // rely on Prisma to validate the data.
         userFields
@@ -2003,35 +2214,194 @@ function getSignupRoute({
     } catch (e) {
       rethrowPossibleAuthError(e);
     }
+    if (isEmailAutoVerified) {
+      return res.json({ success: true });
+    }
+    const verificationLink = await createEmailVerificationLink(
+      fields.email,
+      clientRoute
+    );
+    try {
+      await sendEmailVerificationEmail(fields.email, {
+        from: fromField,
+        to: fields.email,
+        ...getVerificationEmailContent({ verificationLink })
+      });
+    } catch (e) {
+      console.error("Failed to send email verification email:", e);
+      throw new HttpError(500, "Failed to send email verification email.");
+    }
     return res.json({ success: true });
-  });
+  };
 }
-function ensureValidArgs(args) {
-  ensureValidUsername(args);
+function ensureValidArgs$1(args) {
+  ensureValidEmail(args);
   ensurePasswordIsPresent(args);
   ensureValidPassword(args);
 }
 
-const userSignupFields = {
-  username: async (data) => {
-    if (!data.username) {
-      throw new Error("Username is required");
+function getRequestPasswordResetRoute({
+  fromField,
+  clientRoute,
+  getPasswordResetEmailContent
+}) {
+  return async function requestPasswordReset(req, res) {
+    const args = req.body ?? {};
+    ensureValidEmail(args);
+    const authIdentity = await findAuthIdentity(
+      createProviderId("email", args.email)
+    );
+    if (!authIdentity) {
+      await doFakeWork();
+      return res.json({ success: true });
     }
-    return data.username;
+    const providerData = getProviderDataWithPassword(authIdentity.providerData);
+    const { isResendAllowed, timeLeft } = isEmailResendAllowed(providerData, "passwordResetSentAt");
+    if (!isResendAllowed) {
+      throw new HttpError(400, `Please wait ${timeLeft} secs before trying again.`);
+    }
+    const passwordResetLink = await createPasswordResetLink(args.email, clientRoute);
+    try {
+      const email = authIdentity.providerUserId;
+      await sendPasswordResetEmail(
+        email,
+        {
+          from: fromField,
+          to: email,
+          ...getPasswordResetEmailContent({ passwordResetLink })
+        }
+      );
+    } catch (e) {
+      console.error("Failed to send password reset email:", e);
+      throw new HttpError(500, "Failed to send password reset email.");
+    }
+    return res.json({ success: true });
+  };
+}
+
+async function resetPassword(req, res) {
+  const args = req.body ?? {};
+  ensureValidArgs(args);
+  const { token, password } = args;
+  const { email } = await validateJWT(token).catch(() => {
+    throw new HttpError(400, "Password reset failed, invalid token");
+  });
+  const providerId = createProviderId("email", email);
+  const authIdentity = await findAuthIdentity(providerId);
+  if (!authIdentity) {
+    throw new HttpError(400, "Password reset failed, invalid token");
+  }
+  const providerData = getProviderDataWithPassword(authIdentity.providerData);
+  await updateAuthIdentityProviderData(providerId, providerData, {
+    // The act of resetting the password verifies the email
+    isEmailVerified: true,
+    // The password will be hashed when saving the providerData
+    // in the DB
+    hashedPassword: password
+  });
+  return res.json({ success: true });
+}
+function ensureValidArgs(args) {
+  ensureTokenIsPresent(args);
+  ensurePasswordIsPresent(args);
+  ensureValidPassword(args);
+}
+
+async function verifyEmail(req, res) {
+  const { token } = req.body;
+  const { email } = await validateJWT(token).catch(() => {
+    throw new HttpError(400, "Email verification failed, invalid token");
+  });
+  const providerId = createProviderId("email", email);
+  const authIdentity = await findAuthIdentity(providerId);
+  if (!authIdentity) {
+    throw new HttpError(400, "Email verification failed, invalid token");
+  }
+  const providerData = getProviderDataWithPassword(authIdentity.providerData);
+  await updateAuthIdentityProviderData(providerId, providerData, {
+    isEmailVerified: true
+  });
+  return res.json({ success: true });
+}
+
+const userSignupFields = {
+  email: async (data) => {
+    if (!data.email) {
+      throw new Error("Email is required");
+    }
+    const emailRegex = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
+    if (!emailRegex.test(data.email)) {
+      throw new Error("Invalid email format");
+    }
+    return data.email;
+  },
+  role: async (data) => {
+    const validRoles = ["Researcher", "Admin"];
+    const providedRole = data.role ? String(data.role).trim() : "";
+    const role = validRoles.includes(providedRole) ? providedRole : "Researcher";
+    if (providedRole && !validRoles.includes(providedRole)) {
+      console.warn(`Invalid role "${providedRole}" provided during signup. Defaulting to 'Researcher'.`);
+    }
+    return role;
   }
 };
 
+const getPasswordResetEmailContent = ({
+  passwordResetLink
+}) => ({
+  subject: "Reset your Thesis Grey password",
+  text: `You requested to reset your Thesis Grey password. Please click the following link to reset it: ${passwordResetLink}`,
+  html: `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #333;">Reset Your Password</h2>
+      <p>We received a request to reset your password for Thesis Grey. To proceed with resetting your password, please click the button below:</p>
+      <p style="text-align: center; margin: 30px 0;">
+        <a href="${passwordResetLink}" style="background-color: #4f46e5; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Reset Password</a>
+      </p>
+      <p>If you did not request a password reset, please ignore this email or contact support if you have concerns.</p>
+      <p>This link will expire in 1 hour.</p>
+      <p>Thank you,<br>The Thesis Grey Team</p>
+    </div>
+  `
+});
+
 const _waspUserSignupFields = userSignupFields;
+const _waspGetPasswordResetEmailContent = getPasswordResetEmailContent;
+const _waspGetVerificationEmailContent = ({ verificationLink }) => ({
+  subject: "Verify your email",
+  text: `Click the link below to verify your email: ${verificationLink}`,
+  html: `
+        <p>Click the link below to verify your email</p>
+        <a href="${verificationLink}">Verify email</a>
+    `
+});
+const fromField = {
+  name: "Thesis Grey",
+  email: "noreply@thesis-grey.app"
+};
 const config = {
-  id: "username",
-  displayName: "Username and password",
+  id: "email",
+  displayName: "Email and password",
   createRouter() {
     const router = Router();
-    router.post("/login", login);
-    const signupRoute = getSignupRoute({
-      userSignupFields: _waspUserSignupFields
-    });
+    const loginRoute = handleRejection(getLoginRoute());
+    router.post("/login", loginRoute);
+    const signupRoute = handleRejection(getSignupRoute({
+      userSignupFields: _waspUserSignupFields,
+      fromField,
+      clientRoute: "/email-verification",
+      getVerificationEmailContent: _waspGetVerificationEmailContent,
+      isEmailAutoVerified: env.SKIP_EMAIL_VERIFICATION_IN_DEV
+    }));
     router.post("/signup", signupRoute);
+    const requestPasswordResetRoute = handleRejection(getRequestPasswordResetRoute({
+      fromField,
+      clientRoute: "/password-reset",
+      getPasswordResetEmailContent: _waspGetPasswordResetEmailContent
+    }));
+    router.post("/request-password-reset", requestPasswordResetRoute);
+    router.post("/reset-password", handleRejection(resetPassword));
+    router.post("/verify-email", handleRejection(verifyEmail));
     return router;
   }
 };

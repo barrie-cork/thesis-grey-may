@@ -274,6 +274,9 @@ page AdminPage {
 - OAuth integrations (Google)
 - Role-based authorization
 
+**Role Assignment in Phase 2:**
+Users continue to receive the "Researcher" role by default at signup (no user selection required), with the ability for administrators to assign the "Admin" role. The "Reviewer" role is dynamically assigned when a Lead Reviewer (the creator of a search strategy) invites another user to review search results. This context-based role assignment aligns with the collaborative review workflow where a Lead Reviewer manages the review process while multiple Reviewers can tag and annotate results independently.
+
 ### 2. Search Strategy Builder (Enhancements)
 
 ```wasp
@@ -451,6 +454,18 @@ action createCustomTag {
 - Citation management
 - Bulk review operations
 - Review progress tracking
+
+**Collaborative Review Workflow in Phase 2:**
+Phase 2 extends the review process to support a collaborative workflow with multiple reviewers:
+
+1. The creator of a search strategy (default "Researcher" role) automatically becomes the Lead Reviewer for that session
+2. The Lead Reviewer can invite other users to join as Reviewers for specific search sessions
+3. When invited, users gain the "Reviewer" role contextually for that session while maintaining their default "Researcher" role systemwide
+4. Lead Reviewers and Reviewers independently tag and annotate results
+5. The system tracks conflicts between reviewers' tagging decisions
+6. The Lead Reviewer can review conflicts and make final determinations
+
+This contextual role assignment means that a user can be a Lead Reviewer for sessions they create and a Reviewer for sessions they're invited to, with appropriate permissions for each context.
 
 ### 6. Reporting & Export (Enhancements)
 

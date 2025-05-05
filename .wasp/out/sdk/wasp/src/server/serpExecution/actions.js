@@ -1,12 +1,22 @@
 import { HttpError } from "wasp/server";
 import axios from "axios";
+import { requireAnyRole } from '../auth/authorization.js';
 
 /**
  * Execute a search query using the Google Search API via Serper
  */
-export const executeSearchQuery = async ({ queryId, maxResults = 100 }, context) => {
+export const executeSearchQuery = async (args, context) => {
   if (!context.user) {
     throw new HttpError(401, "Unauthorized");
+  }
+  
+  // Check if user has the required role to execute searches (Lead Reviewer or Admin)
+  requireAnyRole(context.user, ['Lead Reviewer', 'Admin'], 'Only Lead Reviewers and Admins can execute searches');
+
+  const { queryId, maxResults = 100 } = args;
+
+  if (!queryId) {
+    throw new HttpError(400, 'Query ID is required');
   }
 
   try {

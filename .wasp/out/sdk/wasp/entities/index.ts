@@ -10,6 +10,7 @@ import {
   type ReviewTagAssignment,
   type ReviewAssignment,
   type Note,
+  type SessionMembership,
 } from "@prisma/client"
 
 export {
@@ -24,6 +25,7 @@ export {
   type ReviewTagAssignment,
   type ReviewAssignment,
   type Note,
+  type SessionMembership,
   type Auth,
   type AuthIdentity,
 } from "@prisma/client"
@@ -40,6 +42,7 @@ export type Entity =
   | ReviewTagAssignment
   | ReviewAssignment
   | Note
+  | SessionMembership
   | never
 
 export type EntityName = 
@@ -54,4 +57,5 @@ export type EntityName =
   | "ReviewTagAssignment"
   | "ReviewAssignment"
   | "Note"
+  | "SessionMembership"
   | never

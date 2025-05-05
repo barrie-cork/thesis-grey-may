@@ -34,6 +34,45 @@ export const routes = {
         options?.hash
       ),
   },
+  EmailVerificationRoute: {
+    to: "/email-verification",
+    build: (
+      options?:
+      OptionalRouteOptions
+    ) => interpolatePath(
+        
+        "/email-verification",
+        undefined,
+        options?.search,
+        options?.hash
+      ),
+  },
+  PasswordResetRoute: {
+    to: "/password-reset",
+    build: (
+      options?:
+      OptionalRouteOptions
+    ) => interpolatePath(
+        
+        "/password-reset",
+        undefined,
+        options?.search,
+        options?.hash
+      ),
+  },
+  RequestPasswordResetRoute: {
+    to: "/request-password-reset",
+    build: (
+      options?:
+      OptionalRouteOptions
+    ) => interpolatePath(
+        
+        "/request-password-reset",
+        undefined,
+        options?.search,
+        options?.hash
+      ),
+  },
   ProfileRoute: {
     to: "/profile",
     build: (

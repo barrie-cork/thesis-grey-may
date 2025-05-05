@@ -30,7 +30,7 @@ export type AuthUser = AuthUserData & {
  */
 export type AuthUserData = Omit<CompleteUserEntityWithAuth, 'auth'> & {
   identities: {
-    username: Expand<UserFacingProviderData<'username'>> | null
+    email: Expand<UserFacingProviderData<'email'>> | null
   },
 }
 
@@ -75,7 +75,7 @@ export function createAuthUserData(user: CompleteUserEntityWithAuth): AuthUserDa
 This should never happen, but it did which means there is a bug in the code.`)
   }
   const identities = {
-    username: getProviderInfo<'username'>(auth, 'username'),
+    email: getProviderInfo<'email'>(auth, 'email'),
   }
   return {
     ...rest,

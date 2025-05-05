@@ -9,19 +9,23 @@ This document outlines the product requirements, implementation roadmap, and Was
 ### 1. Authentication System
 
 **Requirements:**
-- [x] User registration with username and password
+- [x] User registration with email/password/role
 - [x] User login functionality
-- [x] Protected routes with auth redirects
-- [x] User profile management
+- [x] Protected routes with auth redirects (`authRequired: true`)
+- [x] User profile management (basic display/update)
+- [x] Email Verification Flow
+- [x] Password Reset Flow
 - [x] Proper authentication configuration in main.wasp
 
 **Verification Steps:**
-1. Verify SignupPage works with `additionalFields` for username
-2. Confirm LoginPage correctly authenticates users
-3. Test protected routes redirect to login when unauthorized
-4. Validate userSignupFields implementation handles required fields
-5. Confirm onBeforeSignup hook implementation follows Wasp v0.16.0 pattern
-6. Test profile page displays user information
+- [x] Verify SignupPage works with fields for email, password, and role (Researcher/Admin)
+- [x] Confirm LoginPage correctly authenticates users after verification
+- [x] Test protected routes redirect to login when unauthorized
+- [x] Validate userSignupFields implementation handles required fields and roles
+- [x] Confirm onBeforeSignup hook implementation follows Wasp v0.16.0 pattern
+- [x] Test profile page displays user information
+- [x] Test email verification link flow (via console logs with Dummy provider)
+- [x] Test password reset flow (request and confirmation via console logs)
 
 ### 2. Search Strategy Builder
 
@@ -262,8 +266,8 @@ After any changes to entity models in `schema.prisma`:
 ## Implementation Roadmap
 
 ### Week 1: Authentication & Core Setup
-- [x] Complete authentication system
-- [x] Set up user profiles
+- [x] Complete authentication system (Signup, Login, Verification, Password Reset)
+- [x] Set up user profiles page
 - [x] Verify auth flows work correctly
 
 ### Week 2: Search Strategy Builder

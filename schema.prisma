@@ -17,12 +17,13 @@ datasource db {
 
 model User {
   id                 String            @id @default(uuid())
-  username           String            @unique
-  email              String?           @unique
+  email              String            @unique
+  role               String            @default("Researcher") // Role-based authorization
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
   searchSessions     SearchSession[]
   reviewAssignments  ReviewAssignment[] // Added by user schema
+  sessionMemberships SessionMembership[] // Relation to session memberships
 
   // Add any other custom fields here
 }
@@ -37,12 +38,13 @@ model SearchSession {
   description       String?
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
-  userId            String
+  userId            String            // Creator of the session (Implicit Lead Reviewer in Phase 1)
   user              User              @relation(fields: [userId], references: [id])
   searchQueries     SearchQuery[]
   searchExecutions  SearchExecution[]
   processedResults  ProcessedResult[]
   reviewTags        ReviewTag[]
+  members           SessionMembership[] // Relation to session members (for Phase 2)
 }
 
 model SearchQuery {
@@ -168,4 +170,23 @@ model Note {
   // user              User?             @relation(fields: [userId], references: [id])
 
   @@index([resultId])
+}
+
+// ==============================================
+// Session Membership (for Phase 2 multi-reviewer)
+// ==============================================
+
+model SessionMembership {
+  id          String        @id @default(uuid())
+  userId      String
+  sessionId   String
+  role        String        // e.g., "LeadReviewer", "Reviewer"
+  assignedAt  DateTime      @default(now())
+
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  searchSession SearchSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, sessionId]) // User can only have one role per session
+  @@index([userId])
+  @@index([sessionId])
 } 

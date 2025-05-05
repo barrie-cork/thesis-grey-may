@@ -1,4 +1,5 @@
 import { HttpError } from 'wasp/server';
+import { ROLES, promoteToLeadReviewer } from '../auth/authorization.js';
 
 /**
  * Create a new search session
@@ -29,15 +30,36 @@ export const createSearchSession = async (args, context) => {
   }
 
   try {
-    const newSession = await context.entities.SearchSession.create({
-      data,
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        createdAt: true,
-        updatedAt: true
+    // Transaction to create session and update user role if needed
+    // Using the User entity via Prisma client
+    const prisma = context.entities._prisma;
+    
+    // Create the session and potentially promote the user in a transaction
+    const [newSession, updatedUser] = await prisma.$transaction(async (tx) => {
+      // 1. Create the search session
+      const session = await tx.searchSession.create({
+        data,
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          createdAt: true,
+          updatedAt: true
+        }
+      });
+      
+      // 2. Promote user to Lead Reviewer if they're currently a Researcher
+      let user = null;
+      if (context.user.role === 'Researcher') {
+        user = await tx.user.update({
+          where: { id: context.user.id },
+          data: { role: ROLES.LEAD_REVIEWER },
+          select: { id: true, role: true }
+        });
+        console.log(`User ${context.user.id} promoted to Lead Reviewer`);
       }
+      
+      return [session, user];
     });
 
     return newSession;

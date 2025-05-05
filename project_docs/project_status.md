@@ -2,7 +2,7 @@
 
 ## Current Status
 
-As of the latest update, the Thesis Grey project has been successfully implemented with Wasp v0.16.0 and follows the principles of Vertical Slice Architecture (VSA). The authentication system has been recently updated to match Wasp v0.16.0's new API requirements, and the application is now running successfully.
+As of the latest update, the Thesis Grey project has been successfully implemented with Wasp v0.16.0 and follows the principles of Vertical Slice Architecture (VSA). **Task 2 (Implement Authentication System) is now complete.** This includes user signup (with Researcher/Admin role selection), email verification, login/logout, password reset, and protected routes based on the `authRequired` flag.
 
 ## Core Architecture
 
@@ -38,7 +38,12 @@ feature/
 - ✅ Basic routing and page structure
 
 ### Feature Implementation
-- ✅ User authentication and profile management
+- ✅ User authentication and profile management (Task 2 Completed):
+  - Signup (Email/Password/Role)
+  - Login/Logout
+  - Email Verification
+  - Password Reset
+  - Protected Routes (`authRequired: true`)
 - ✅ Search strategy builder with session management
 - ✅ Search execution via Google Search API
 - ✅ Results processing and management

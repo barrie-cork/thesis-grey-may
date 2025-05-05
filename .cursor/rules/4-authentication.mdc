@@ -1,7 +1,7 @@
 ---
 description: 
 globs: 
-alwaysApply: false
+alwaysApply: true
 ---
 # 4. Thesis Grey Authentication
 
@@ -52,6 +52,23 @@ export const userSignupFields: UserSignupFields = {
       throw new Error('Username is required');
     }
     return data.username;
+  },
+  role: async (data: any) => {
+    // Set default role or validate provided role
+    const validRoles = ['Researcher', 'Admin'];
+    
+    // Default to 'Researcher' if role is empty or not provided
+    const role = data.role ? data.role.trim() : 'Researcher';
+    
+    if (!role) {
+      return 'Researcher';
+    }
+    
+    if (!validRoles.includes(role)) {
+      throw new Error('Invalid role. Must be one of: ' + validRoles.join(', '));
+    }
+    
+    return role;
   }
 };
 ```
@@ -68,6 +85,45 @@ export const onBeforeSignup: OnBeforeSignupHook = async ({ providerId, req, pris
   
   // No return value needed (void)
 };
+```
+
+## Role Configuration
+
+Thesis Grey implements a role-based authorization system with two primary roles:
+
+1. **Researcher** - The default role assigned to regular users
+2. **Admin** - Role with elevated privileges for administrative tasks
+
+Role validation is enforced in both the frontend and backend:
+
+- Frontend: The signup form includes a select dropdown with valid role options
+- Backend: The `userSignupFields` handler validates that the role is one of the allowed values
+
+### Role Selection in Signup Form
+
+```tsx
+// Role selection implemented using a render function for the additionalFields prop
+(form, state) => {
+  return (
+    <FormItemGroup>
+      <FormLabel>Role</FormLabel>
+      <select
+        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+        defaultValue="Researcher"
+        {...form.register('role', { required: 'Role is required' })}
+        disabled={state.isLoading}
+      >
+        <option value="Researcher">Researcher</option>
+        <option value="Admin">Admin</option>
+      </select>
+      {form.formState.errors.role && (
+        <FormError>
+          {form.formState.errors.role.message as string}
+        </FormError>
+      )}
+    </FormItemGroup>
+  );
+}
 ```
 
 ## Authentication Pages
@@ -106,38 +162,79 @@ export function LoginPage() {
 
 ```tsx
 // src/client/auth/pages/SignupPage.tsx
-import React from 'react';
+import React, { useState } from 'react';
 import { SignupForm } from 'wasp/client/auth';
 import { Link } from 'react-router-dom';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../../shared/components/ui/card';
+import { Alert, AlertDescription } from '../../shared/components/ui/alert';
+import { useAuth } from 'wasp/client/auth';
+import { FormItemGroup, FormLabel, FormError } from 'wasp/client/auth';
 
 export function SignupPage() {
+  const { isLoading, error } = useAuth();
+  const [formError, setFormError] = useState<string | null>(null);
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Create a new account
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Or{' '}
-            <Link to="/login" className="font-medium text-blue-600 hover:text-blue-500">
-              sign in to your existing account
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold text-center">Create a new account</CardTitle>
+          <CardDescription className="text-center">
+            Fill in the details below to sign up
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {(error || formError) && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertDescription>
+                {error ? 'Signup failed. Please check your information and try again.' : formError}
+              </AlertDescription>
+            </Alert>
+          )}
+          <SignupForm 
+            additionalFields={[
+              {
+                name: 'username',
+                label: 'Username',
+                type: 'input',
+                validations: {
+                  required: 'Username is required'
+                }
+              },
+              // Role selection dropdown
+              (form, state) => {
+                return (
+                  <FormItemGroup>
+                    <FormLabel>Role</FormLabel>
+                    <select
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      defaultValue="Researcher"
+                      {...form.register('role', { required: 'Role is required' })}
+                      disabled={state.isLoading}
+                    >
+                      <option value="Researcher">Researcher</option>
+                      <option value="Admin">Admin</option>
+                    </select>
+                    {form.formState.errors.role && (
+                      <FormError>
+                        {form.formState.errors.role.message as string}
+                      </FormError>
+                    )}
+                  </FormItemGroup>
+                );
+              }
+            ]}
+          />
+        </CardContent>
+        <CardFooter className="flex justify-center">
+          <p className="text-sm text-gray-600">
+            Already have an account?{' '}
+            <Link to="/login" className="font-medium text-primary hover:text-primary/80">
+              Sign in to your account
             </Link>
           </p>
-        </div>
-        <div className="mt-8">
-          <SignupForm additionalFields={[
-            {
-              name: 'username',
-              type: 'input',
-              label: 'Username',
-              validations: {
-                required: 'Username is required'
-              }
-            }
-          ]} />
-        </div>
-      </div>
+        </CardFooter>
+      </Card>
     </div>
   );
 }
@@ -248,5 +345,6 @@ export const getSearchSession = (async (args, context) => {
 6. **Type Safety**: Use the `satisfies` operator to ensure proper typing of server operations
 7. **Proper Field Handling**: Use `userSignupFields` to process and validate custom fields during signup
 8. **Validation Hooks**: Use `onBeforeSignup` for validation or preliminary checks before user creation
+9. **Consistent Role Validation**: Ensure roles are validated both on the client side (dropdown options) and server side (userSignupFields)
 
 These patterns ensure that Thesis Grey maintains a secure authentication model throughout the application.

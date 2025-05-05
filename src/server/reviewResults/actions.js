@@ -1,4 +1,5 @@
 import { HttpError } from "wasp/server";
+import { requireAnyRole, isSessionOwnerOrAdmin } from '../auth/authorization.js';
 
 /**
  * Create a new review tag
@@ -7,6 +8,9 @@ export const createReviewTag = async ({ sessionId, name, color }, context) => {
   if (!context.user) {
     throw new HttpError(401, "Unauthorized");
   }
+
+  // Only Lead Reviewers and Admins can create review tags
+  requireAnyRole(context.user, ['Lead Reviewer', 'Admin'], 'Only Lead Reviewers and Admins can create review tags');
 
   try {
     // Validate that the session exists and belongs to the user

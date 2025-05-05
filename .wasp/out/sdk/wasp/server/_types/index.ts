@@ -93,6 +93,7 @@ export type PrismaDelegate = {
   "ReviewTagAssignment": typeof prisma.reviewTagAssignment,
   "ReviewAssignment": typeof prisma.reviewAssignment,
   "Note": typeof prisma.note,
+  "SessionMembership": typeof prisma.sessionMembership,
 }
 
 type Context<Entities extends _Entity[]> = Expand<{

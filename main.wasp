@@ -5,16 +5,28 @@ app ThesisGrey {
   auth: {
     userEntity: User, // This User refers to the one in schema.prisma
     methods: {
-      usernameAndPassword: {
-        userSignupFields: import { userSignupFields } from "@src/server/auth/userSignupFields.ts"
+      email: {
+        userSignupFields: import { userSignupFields } from "@src/server/auth/userSignupFields.ts",
+        fromField: {
+          name: "Thesis Grey",
+          email: "noreply@thesis-grey.app"
+        },
+        // For Phase 1, we'll include basic email verification and password reset
+        emailVerification: {
+          clientRoute: EmailVerificationRoute
+        },
+        passwordReset: {
+          clientRoute: PasswordResetRoute,
+          getEmailContentFn: import { getPasswordResetEmailContent } from "@src/server/auth/emailContent.ts"
+        }
       }
     },
     onAuthFailedRedirectTo: "/login",
     onBeforeSignup: import { onBeforeSignup } from "@src/server/auth/hooks.ts",
-    // TODO: Add email verification?
   },
-  client: {
-    setupFn: import { setupClient } from "@src/client/setup.ts"
+  // Email sender configuration at the app level
+  emailSender: {
+    provider: Dummy
   }
 }
 
@@ -31,6 +43,22 @@ page LoginPage {
 route SignupRoute { path: "/signup", to: SignupPage }
 page SignupPage {
   component: import { SignupPage } from "@src/client/auth/pages/SignupPage"
+}
+
+// Email verification and password reset routes
+route EmailVerificationRoute { path: "/email-verification", to: EmailVerificationPage }
+page EmailVerificationPage {
+  component: import { EmailVerificationPage } from "@src/client/auth/pages/EmailVerificationPage"
+}
+
+route PasswordResetRoute { path: "/password-reset", to: PasswordResetPage }
+page PasswordResetPage {
+  component: import { PasswordResetPage } from "@src/client/auth/pages/PasswordResetPage"
+}
+
+route RequestPasswordResetRoute { path: "/request-password-reset", to: RequestPasswordResetPage }
+page RequestPasswordResetPage {
+  component: import { RequestPasswordResetPage } from "@src/client/auth/pages/RequestPasswordResetPage"
 }
 
 // REMOVED Simple Query & Action

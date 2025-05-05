@@ -1,5 +1,5 @@
 export * from './ui'
-export * from './username'
+export * from './email'
 export {
   default as useAuth,
   getMe,

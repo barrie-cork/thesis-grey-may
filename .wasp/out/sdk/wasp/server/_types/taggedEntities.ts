@@ -17,6 +17,7 @@ import {
   type ReviewTagAssignment,
   type ReviewAssignment,
   type Note,
+  type SessionMembership,
 } from 'wasp/entities'
 
 export type _User = WithName<User, "User">
@@ -30,6 +31,7 @@ export type _ReviewTag = WithName<ReviewTag, "ReviewTag">
 export type _ReviewTagAssignment = WithName<ReviewTagAssignment, "ReviewTagAssignment">
 export type _ReviewAssignment = WithName<ReviewAssignment, "ReviewAssignment">
 export type _Note = WithName<Note, "Note">
+export type _SessionMembership = WithName<SessionMembership, "SessionMembership">
 
 export type _Entity = 
   | _User
@@ -43,6 +45,7 @@ export type _Entity =
   | _ReviewTagAssignment
   | _ReviewAssignment
   | _Note
+  | _SessionMembership
   | never
 
 type WithName<E extends Entity, Name extends EntityName> = 

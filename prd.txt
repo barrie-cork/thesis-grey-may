@@ -43,6 +43,7 @@ model User {
   username           String            @unique
   email              String?           @unique
   password           String            // Hashed password
+  role               String            @default("researcher") // Default role
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
   searchSessions     SearchSession[]
@@ -286,8 +287,11 @@ page ProfilePage {
 - User registration and login
 - Profile management
 - JWT-based authentication
-- Basic role-based permissions (Researcher role)
+- Basic role-based permissions (Researcher role automatically assigned at signup, not user-selected)
 - Integration with Wasp authentication system
+
+**Role Assignment in Phase 1:**
+All users are initially assigned the "Researcher" role by default at signup. This role allows users to create search strategies. When a user creates a search strategy, they automatically become the "Lead Reviewer" for that strategy. In Phase 2, the Lead Reviewer will be able to invite other users as "Reviewers" to collaborate on reviewing search results.
 
 **Extension points for Phase 2:**
 - Advanced roles and permissions system
@@ -474,6 +478,9 @@ action createNote {
 - Basic filtering
 - Progress tracking
 - PRISMA-compliant workflow
+
+**Review Workflow in Phase 1:**
+In Phase 1, the user who creates a search strategy automatically serves as the Lead Reviewer for that session. The Lead Reviewer is responsible for reviewing and tagging all search results. Phase 1 implements a single-reviewer workflow, with Phase 2 extending this to support collaborative review with multiple reviewers.
 
 **Extension points for Phase 2:**
 - Advanced tagging system

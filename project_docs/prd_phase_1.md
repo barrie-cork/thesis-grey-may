@@ -43,10 +43,12 @@ model User {
   username           String            @unique
   email              String?           @unique
   password           String            // Hashed password
+  role               String            @default("researcher") // Default role
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
   searchSessions     SearchSession[]
   reviewAssignments  ReviewAssignment[]
+  sessionMemberships SessionMembership[]
 }
 
 // Search Session
@@ -62,6 +64,7 @@ model SearchSession {
   searchExecutions  SearchExecution[]
   processedResults  ProcessedResult[]
   reviewTags        ReviewTag[]
+  members           SessionMembership[]
 }
 
 // Search Query
@@ -167,6 +170,22 @@ model Note {
   updatedAt         DateTime          @updatedAt
   resultId          String
   result            ProcessedResult   @relation(fields: [resultId], references: [id])
+}
+
+// Session Membership
+model SessionMembership {
+  id          String        @id @default(uuid())
+  userId      String
+  sessionId   String
+  role        String        // e.g., "LeadReviewer", "Reviewer" - Defined roles for session context
+  assignedAt  DateTime      @default(now())
+
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  searchSession SearchSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, sessionId]) // User can only have one role per session
+  @@index([userId])
+  @@index([sessionId])
 }
 ```
 
@@ -286,8 +305,15 @@ page ProfilePage {
 - User registration and login
 - Profile management
 - JWT-based authentication
-- Basic role-based permissions (Researcher role)
+- Basic role-based permissions (User selects Researcher or Admin at signup)
 - Integration with Wasp authentication system
+
+**Role Assignment in Phase 1:**
+Phase 1 implements a two-tiered role system:
+1.  **Global Role (Researcher/Admin):** Users select either "Researcher" or "Admin" during signup. This role defines their general capabilities within the application.
+2.  **Implicit Lead Reviewer:** When a user (regardless of their global role) creates a `SearchSession`, they automatically become the implicit "Lead Reviewer" *for that specific session*. This is determined by matching the logged-in user's ID with the `SearchSession.userId` field. In Phase 1, only the creator/Lead Reviewer can manage and review results within their own session.
+
+The concept of inviting other users as "Reviewers" and explicit session-level roles using the `SessionMembership` table is deferred to Phase 2.
 
 **Extension points for Phase 2:**
 - Advanced roles and permissions system
@@ -474,6 +500,9 @@ action createNote {
 - Basic filtering
 - Progress tracking
 - PRISMA-compliant workflow
+
+**Review Workflow in Phase 1:**
+In Phase 1, the user who creates a search strategy (the implicit Lead Reviewer, identified by `SearchSession.userId`) is responsible for reviewing and tagging all search results within that session. Phase 1 implements a single-user-per-session workflow. Phase 2 will extend this using the `SessionMembership` table to support collaborative review with multiple invited Reviewers.
 
 **Extension points for Phase 2:**
 - Advanced tagging system
